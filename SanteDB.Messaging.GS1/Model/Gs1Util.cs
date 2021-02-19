@@ -372,7 +372,7 @@ namespace SanteDB.Messaging.GS1.Model
                     throw new InvalidOperationException("Cannot auto-create material, type code must be specified");
                 else // lookup type code
                 {
-                    var concept = ApplicationServiceContext.Current.GetService<IConceptRepositoryService>().FindConceptsByReferenceTerm(tradeItem.itemTypeCode.Value, tradeItem.itemTypeCode.codeListVersion).FirstOrDefault();
+                    var concept = ApplicationServiceContext.Current.GetService<IConceptRepositoryService>().GetConceptByReferenceTerm(tradeItem.itemTypeCode.Value, tradeItem.itemTypeCode.codeListVersion);
                     if (concept == null && tradeItem.itemTypeCode.codeListVersion == "SanteDB-MaterialType")
                         concept = ApplicationServiceContext.Current.GetService<IConceptRepositoryService>().GetConcept(tradeItem.itemTypeCode.Value);
 

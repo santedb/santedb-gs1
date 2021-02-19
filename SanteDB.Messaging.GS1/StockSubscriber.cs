@@ -34,6 +34,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Linq;
 using SanteDB.Core.Diagnostics;
+using SanteDB.Server.Core.Services;
 
 namespace SanteDB.Messaging.GS1
 {

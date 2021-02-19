@@ -26,6 +26,8 @@ using SanteDB.Messaging.GS1.Model;
 using System;
 using System.ComponentModel;
 using System.Diagnostics;
+using SanteDB.Server.Core.Services;
+using SanteDB.Server.Core.Http;
 
 namespace SanteDB.Messaging.GS1.Transport.AS2
 {

@@ -20,7 +20,7 @@
  -->
 <RestServiceConfiguration xmlns="http://santedb.org/configuration" name="GS1">
   <behaviors>
-    <add type="SanteDB.Core.Rest.Security.TokenAuthorizationAccessBehavior, SanteDB.Core, Version=1.10.0.0"/>
+    <add type="SanteDB.Server.Core.Rest.Security.TokenAuthorizationAccessBehavior, SanteDB.Server.Core, Version=1.10.0.0"/>
   </behaviors>
   <endpoint address="http://0.0.0.0:8080/gs1" contract="SanteDB.Messaging.GS1.Rest.IStockService, SanteDB.Messaging.GS1, Version=1.10.0.0">
     <behaviors>

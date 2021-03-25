@@ -63,7 +63,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="app.config" />
-    <None Include="Data\100-Gs1ReferenceTerms.dataset">
+    <None Include="data\100-Gs1ReferenceTerms.dataset">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
     <EmbeddedResource Include="Configuration\Default.xml" />
@@ -76,7 +76,7 @@
     <None Include="..\SanteDB.licenseheader">
       <Link>SanteDB.licenseheader</Link>
     </None>
-    <None Include="Data\100-Gs1ExtensionTypes.dataset">
+    <None Include="data\100-Gs1ExtensionTypes.dataset">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
   </ItemGroup>

@@ -281,98 +281,100 @@ namespace SanteDB.Messaging.GS1.Rest
             if (gtin == null || gtin.Oid == null)
                 throw new InvalidOperationException("GTIN configuration must carry OID and be named GTIN in repository");
 
-            var masterAuthContext = AuthenticationContext.Current;
+            var masterAuthContext = AuthenticationContext.Current.Principal;
 
             // Create the inventory report
             filterPlaces.AsParallel().ForAll(place =>
             {
-                try
+                using (AuthenticationContext.EnterContext(masterAuthContext))
                 {
-                    AuthenticationContext.Current = masterAuthContext;
-
-                    var locationStockStatus = new LogisticsInventoryReportInventoryLocationType();
-                    lock (locationStockStatuses)
-                        locationStockStatuses.Add(locationStockStatus);
-
-                    // TODO: Store the GLN configuration domain name
-                    locationStockStatus.inventoryLocation = this.m_gs1Util.CreateLocation(place);
-
-                    var tradeItemStatuses = new List<TradeItemInventoryStatusType>();
-
-                    // What are the relationships of held entities
-                    var persistenceService = ApplicationServiceContext.Current.GetService<IDataPersistenceService<EntityRelationship>>();
-                    var relationships = persistenceService.Query(o=>o.RelationshipTypeKey == EntityRelationshipTypeKeys.OwnedEntity && o.SourceEntityKey == place.Key.Value, AuthenticationContext.Current.Principal);
-                    relationships.AsParallel().ForAll(rel =>
+                    try
                     {
-                        AuthenticationContext.Current = masterAuthContext;
 
-                        if (!(rel.TargetEntity is ManufacturedMaterial))
+                        var locationStockStatus = new LogisticsInventoryReportInventoryLocationType();
+                        lock (locationStockStatuses)
+                            locationStockStatuses.Add(locationStockStatus);
+
+                        // TODO: Store the GLN configuration domain name
+                        locationStockStatus.inventoryLocation = this.m_gs1Util.CreateLocation(place);
+
+                        var tradeItemStatuses = new List<TradeItemInventoryStatusType>();
+
+                        // What are the relationships of held entities
+                        var persistenceService = ApplicationServiceContext.Current.GetService<IDataPersistenceService<EntityRelationship>>();
+                        var relationships = persistenceService.Query(o => o.RelationshipTypeKey == EntityRelationshipTypeKeys.OwnedEntity && o.SourceEntityKey == place.Key.Value, AuthenticationContext.Current.Principal);
+                        relationships.AsParallel().ForAll(rel =>
                         {
-                            var matl = this.m_manufMaterialRepository.Get(rel.TargetEntityKey.Value, Guid.Empty);
-                            if (matl == null)
+                            using (AuthenticationContext.EnterContext(masterAuthContext))
                             {
-                                Trace.TraceWarning("It looks like {0} owns {1} but {1} is not a mmat!?!?!", place.Key, rel.TargetEntityKey);
-                                return;
-                            }
-                            else
-                                rel.TargetEntity = matl;
-                        }
-                        var mmat = rel.TargetEntity as ManufacturedMaterial;
-                        if (!(mmat is ManufacturedMaterial))
-                            return;
 
-                        var mat = this.m_materialRepository.Find(o => o.Relationships.Where(r => r.RelationshipType.Mnemonic == "Instance").Any(r => r.TargetEntity.Key == mmat.Key)).FirstOrDefault();
-                        var instanceData = mat.LoadCollection<EntityRelationship>("Relationships").FirstOrDefault(o => o.RelationshipTypeKey == EntityRelationshipTypeKeys.Instance);
-
-                        decimal balanceOH = rel.Quantity ?? 0;
-
-                        // get the adjustments the adjustment acts are allocations and transfers
-                        var adjustments = this.m_stockService.FindAdjustments(mmat.Key.Value, place.Key.Value, reportFrom, reportTo);
-
-                        // We want to roll back to the start time and re-calc balance oh at time?
-                        if (reportTo.Value.Date < DateTime.Now.Date)
-                        {
-                            var consumed = this.m_stockService.GetConsumed(mmat.Key.Value, place.Key.Value, reportTo, DateTime.Now);
-                            balanceOH -= (decimal)consumed.Sum(o => o.Quantity ?? 0);
-
-                            if (balanceOH == 0 && this.m_stockService.GetConsumed(mmat.Key.Value, place.Key.Value, reportFrom, reportTo).Count() == 0)
-                                return;
-                        }
-
-                        ReferenceTerm cvx = null;
-                        if (mat.TypeConceptKey.HasValue)
-                            cvx = ApplicationServiceContext.Current.GetService<IConceptRepositoryService>().GetConceptReferenceTerm(mat.TypeConceptKey.Value, "CVX");
-
-                        var typeItemCode = new ItemTypeCodeType()
-                        {
-                            Value = cvx?.Mnemonic ?? mmat.TypeConcept?.Mnemonic ?? mat.Key.Value.ToString(),
-                            codeListVersion = cvx?.LoadProperty<CodeSystem>("CodeSystem")?.Authority ?? "SanteDB-MaterialType"
-                        };
-
-                        // First we need the GTIN for on-hand balance
-                        lock(tradeItemStatuses)
-                            tradeItemStatuses.Add(new TradeItemInventoryStatusType()
-                            {
-                                gtin = mmat.Identifiers.FirstOrDefault(o => o.Authority.DomainName == "GTIN")?.Value,
-                                itemTypeCode = typeItemCode,
-                                additionalTradeItemIdentification = mmat.Identifiers.Where(o => o.Authority.DomainName != "GTIN").Select(o => new AdditionalTradeItemIdentificationType()
+                                if (!(rel.TargetEntity is ManufacturedMaterial))
                                 {
-                                    additionalTradeItemIdentificationTypeCode = o.Authority.DomainName,
-                                    Value = o.Value
-                                }).ToArray(),
-                                tradeItemDescription = mmat.Names.Select(o => new Description200Type() { Value = o.Component.FirstOrDefault()?.Value }).FirstOrDefault(),
-                                tradeItemClassification = new TradeItemClassificationType()
-                                {
-                                    additionalTradeItemClassificationCode = mat.Identifiers.Where(o => o.Authority.Oid != gtin.Oid).Select(o => new AdditionalTradeItemClassificationCodeType()
+                                    var matl = this.m_manufMaterialRepository.Get(rel.TargetEntityKey.Value, Guid.Empty);
+                                    if (matl == null)
                                     {
-                                        codeListVersion = o.Authority.DomainName,
-                                        Value = o.Value
-                                    }).ToArray()
-                                },
-                                inventoryDateTime = DateTime.Now,
-                                inventoryDispositionCode = new InventoryDispositionCodeType() { Value = "ON_HAND" },
-                                transactionalItemData = new TransactionalItemDataType[]
+                                        Trace.TraceWarning("It looks like {0} owns {1} but {1} is not a mmat!?!?!", place.Key, rel.TargetEntityKey);
+                                        return;
+                                    }
+                                    else
+                                        rel.TargetEntity = matl;
+                                }
+                                var mmat = rel.TargetEntity as ManufacturedMaterial;
+                                if (!(mmat is ManufacturedMaterial))
+                                    return;
+
+                                var mat = this.m_materialRepository.Find(o => o.Relationships.Where(r => r.RelationshipType.Mnemonic == "Instance").Any(r => r.TargetEntity.Key == mmat.Key)).FirstOrDefault();
+                                var instanceData = mat.LoadCollection<EntityRelationship>("Relationships").FirstOrDefault(o => o.RelationshipTypeKey == EntityRelationshipTypeKeys.Instance);
+
+                                decimal balanceOH = rel.Quantity ?? 0;
+
+                                // get the adjustments the adjustment acts are allocations and transfers
+                                var adjustments = this.m_stockService.FindAdjustments(mmat.Key.Value, place.Key.Value, reportFrom, reportTo);
+
+                                // We want to roll back to the start time and re-calc balance oh at time?
+                                if (reportTo.Value.Date < DateTime.Now.Date)
                                 {
+                                    var consumed = this.m_stockService.GetConsumed(mmat.Key.Value, place.Key.Value, reportTo, DateTime.Now);
+                                    balanceOH -= (decimal)consumed.Sum(o => o.Quantity ?? 0);
+
+                                    if (balanceOH == 0 && this.m_stockService.GetConsumed(mmat.Key.Value, place.Key.Value, reportFrom, reportTo).Count() == 0)
+                                        return;
+                                }
+
+                                ReferenceTerm cvx = null;
+                                if (mat.TypeConceptKey.HasValue)
+                                    cvx = ApplicationServiceContext.Current.GetService<IConceptRepositoryService>().GetConceptReferenceTerm(mat.TypeConceptKey.Value, "CVX");
+
+                                var typeItemCode = new ItemTypeCodeType()
+                                {
+                                    Value = cvx?.Mnemonic ?? mmat.TypeConcept?.Mnemonic ?? mat.Key.Value.ToString(),
+                                    codeListVersion = cvx?.LoadProperty<CodeSystem>("CodeSystem")?.Authority ?? "SanteDB-MaterialType"
+                                };
+
+                                // First we need the GTIN for on-hand balance
+                                lock (tradeItemStatuses)
+                                    tradeItemStatuses.Add(new TradeItemInventoryStatusType()
+                                    {
+                                        gtin = mmat.Identifiers.FirstOrDefault(o => o.Authority.DomainName == "GTIN")?.Value,
+                                        itemTypeCode = typeItemCode,
+                                        additionalTradeItemIdentification = mmat.Identifiers.Where(o => o.Authority.DomainName != "GTIN").Select(o => new AdditionalTradeItemIdentificationType()
+                                        {
+                                            additionalTradeItemIdentificationTypeCode = o.Authority.DomainName,
+                                            Value = o.Value
+                                        }).ToArray(),
+                                        tradeItemDescription = mmat.Names.Select(o => new Description200Type() { Value = o.Component.FirstOrDefault()?.Value }).FirstOrDefault(),
+                                        tradeItemClassification = new TradeItemClassificationType()
+                                        {
+                                            additionalTradeItemClassificationCode = mat.Identifiers.Where(o => o.Authority.Oid != gtin.Oid).Select(o => new AdditionalTradeItemClassificationCodeType()
+                                            {
+                                                codeListVersion = o.Authority.DomainName,
+                                                Value = o.Value
+                                            }).ToArray()
+                                        },
+                                        inventoryDateTime = DateTime.Now,
+                                        inventoryDispositionCode = new InventoryDispositionCodeType() { Value = "ON_HAND" },
+                                        transactionalItemData = new TransactionalItemDataType[]
+                                        {
                                 new TransactionalItemDataType()
                                 {
                                     tradeItemQuantity = new QuantityType()
@@ -388,40 +390,40 @@ namespace SanteDB.Messaging.GS1.Rest
                                     itemExpirationDate = mmat.ExpiryDate.Value,
                                     itemExpirationDateSpecified = true
                                 }
-                                }
-                            });
+                                        }
+                                    });
 
 
-                        foreach (var adjgrp in adjustments.GroupBy(o => o.ReasonConceptKey))
-                        {
-                            var reasonConcept = ApplicationServiceContext.Current.GetService<IConceptRepositoryService>().GetConceptReferenceTerm(adjgrp.Key.Value, "GS1_STOCK_STATUS")?.Mnemonic;
-                            if (reasonConcept == null)
-                                reasonConcept = (ApplicationServiceContext.Current.GetService<IConceptRepositoryService>().Get(adjgrp.Key.Value, Guid.Empty) as Concept)?.Mnemonic;
-
-                            // Broken vials?
-                            lock(tradeItemStatuses)
-                                tradeItemStatuses.Add(new TradeItemInventoryStatusType()
+                                foreach (var adjgrp in adjustments.GroupBy(o => o.ReasonConceptKey))
                                 {
-                                    gtin = mmat.Identifiers.FirstOrDefault(o => o.Authority.DomainName == "GTIN")?.Value,
-                                    itemTypeCode = typeItemCode,
-                                    additionalTradeItemIdentification = mmat.Identifiers.Where(o => o.Authority.DomainName != "GTIN").Select(o => new AdditionalTradeItemIdentificationType()
-                                    {
-                                        additionalTradeItemIdentificationTypeCode = o.Authority.DomainName,
-                                        Value = o.Value
-                                    }).ToArray(),
-                                    tradeItemClassification = new TradeItemClassificationType()
-                                    {
-                                        additionalTradeItemClassificationCode = mat.Identifiers.Where(o => o.Authority.Oid != gtin.Oid).Select(o => new AdditionalTradeItemClassificationCodeType()
+                                    var reasonConcept = ApplicationServiceContext.Current.GetService<IConceptRepositoryService>().GetConceptReferenceTerm(adjgrp.Key.Value, "GS1_STOCK_STATUS")?.Mnemonic;
+                                    if (reasonConcept == null)
+                                        reasonConcept = (ApplicationServiceContext.Current.GetService<IConceptRepositoryService>().Get(adjgrp.Key.Value, Guid.Empty) as Concept)?.Mnemonic;
+
+                                    // Broken vials?
+                                    lock (tradeItemStatuses)
+                                        tradeItemStatuses.Add(new TradeItemInventoryStatusType()
                                         {
-                                            codeListVersion = o.Authority.DomainName,
-                                            Value = o.Value
-                                        }).ToArray()
-                                    },
-                                    tradeItemDescription = mmat.Names.Select(o => new Description200Type() { Value = o.Component.FirstOrDefault()?.Value }).FirstOrDefault(),
-                                    inventoryDateTime = DateTime.Now,
-                                    inventoryDispositionCode = new InventoryDispositionCodeType() { Value = reasonConcept },
-                                    transactionalItemData = new TransactionalItemDataType[]
-                                    {
+                                            gtin = mmat.Identifiers.FirstOrDefault(o => o.Authority.DomainName == "GTIN")?.Value,
+                                            itemTypeCode = typeItemCode,
+                                            additionalTradeItemIdentification = mmat.Identifiers.Where(o => o.Authority.DomainName != "GTIN").Select(o => new AdditionalTradeItemIdentificationType()
+                                            {
+                                                additionalTradeItemIdentificationTypeCode = o.Authority.DomainName,
+                                                Value = o.Value
+                                            }).ToArray(),
+                                            tradeItemClassification = new TradeItemClassificationType()
+                                            {
+                                                additionalTradeItemClassificationCode = mat.Identifiers.Where(o => o.Authority.Oid != gtin.Oid).Select(o => new AdditionalTradeItemClassificationCodeType()
+                                                {
+                                                    codeListVersion = o.Authority.DomainName,
+                                                    Value = o.Value
+                                                }).ToArray()
+                                            },
+                                            tradeItemDescription = mmat.Names.Select(o => new Description200Type() { Value = o.Component.FirstOrDefault()?.Value }).FirstOrDefault(),
+                                            inventoryDateTime = DateTime.Now,
+                                            inventoryDispositionCode = new InventoryDispositionCodeType() { Value = reasonConcept },
+                                            transactionalItemData = new TransactionalItemDataType[]
+                                            {
                                         new TransactionalItemDataType()
                                         {
                                             transactionalItemLogisticUnitInformation = instanceData == null ? null : new TransactionalItemLogisticUnitInformationType()
@@ -443,18 +445,19 @@ namespace SanteDB.Messaging.GS1.Rest
                                             itemExpirationDate = mmat.ExpiryDate.Value,
                                             itemExpirationDateSpecified = true
                                         }
-                                    }
-                                });
-                        }
+                                            }
+                                        });
+                                }
+                            }
+                        });
 
-                    });
-
-                    // Reduce
-                    locationStockStatus.tradeItemInventoryStatus = tradeItemStatuses.ToArray();
-                }
-                catch (Exception e)
-                {
-                    traceSource.TraceError("Error fetching stock data : {0}", e);
+                        // Reduce
+                        locationStockStatus.tradeItemInventoryStatus = tradeItemStatuses.ToArray();
+                    }
+                    catch (Exception e)
+                    {
+                        traceSource.TraceError("Error fetching stock data : {0}", e);
+                    }
                 }
                 // TODO: Reduce and Group by GTIN
             });

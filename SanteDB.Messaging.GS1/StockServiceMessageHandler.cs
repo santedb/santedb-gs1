@@ -38,7 +38,8 @@ namespace SanteDB.Messaging.GS1
     /// <summary>
     /// Stock service message handler
     /// </summary>
-    [ApiServiceProvider("GS1 BMS XML3.3 API Endpoint", typeof(IStockService), configurationType: typeof(Gs1ConfigurationSection))]
+	[Description("Allows SanteDB iCDR to send and receive GS1 BMS XML messages over REST based transport")]
+    [ApiServiceProvider("GS1 BMS XML3.3 API Endpoint", typeof(StockServiceBehavior), configurationType: typeof(Gs1ConfigurationSection))]
 	public class StockServiceMessageHandler : IDaemonService, IApiEndpointProvider
 	{
         /// <summary>

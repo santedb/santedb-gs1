@@ -51,7 +51,7 @@ namespace SanteDB.Messaging.GS1.Configuration
         /// Default content owner assigning authority
         /// </summary>
         [XmlAttribute("defaultAuthority")]
-        [DisplayName("Content Owner AA"), Description("The assinging authority to append to owner information when not provided in the GS1 message")]
+        [DisplayName("Default Owner AA"), Description("The assinging authority to append to owner information when not provided in the GS1 message")]
         public String DefaultContentOwnerAssigningAuthority {
             get;set;
         }

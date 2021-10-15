@@ -64,6 +64,8 @@ namespace SanteDB.Messaging.GS1.Rest
 
         // Tracer
         private Tracer m_tracer = new Tracer(Gs1Constants.TraceSourceName);
+        // Localization Service
+        private readonly ILocalizationService m_localizationService;
 
         /// <summary>
         /// Default ctor setting services
@@ -76,6 +78,7 @@ namespace SanteDB.Messaging.GS1.Rest
             this.m_stockService = ApplicationServiceContext.Current.GetService<IStockManagementRepositoryService>();
             this.m_manufMaterialRepository = ApplicationServiceContext.Current.GetService<IRepositoryService<ManufacturedMaterial>>();
             this.m_gs1Util = new Gs1Util();
+            this.m_localizationService = ApplicationServiceContext.Current.GetService<ILocalizationService>();
         }
 
         // HDSI Trace host
@@ -87,7 +90,11 @@ namespace SanteDB.Messaging.GS1.Rest
         public void IssueDespatchAdvice(DespatchAdviceMessageType advice)
         {
             if (advice == null || advice.despatchAdvice == null)
-                throw new InvalidOperationException("Invalid message sent");
+            {
+                this.m_tracer.TraceError("Invalid message sent");
+                throw new InvalidOperationException(this.m_localizationService.GetString("error.messaging.gs1.invalidMessage"));
+            }
+               
             // TODO: Validate the standard header
             // Loop 
             Bundle orderTransaction = new Bundle();
@@ -99,10 +106,21 @@ namespace SanteDB.Messaging.GS1.Rest
                 Place sourceLocation = this.m_gs1Util.GetLocation(adv.shipper),
                     destinationLocation = this.m_gs1Util.GetLocation(adv.receiver);
                 if (sourceLocation == null)
-                    throw new KeyNotFoundException($"Shipper location not found");
+                {
+                    this.m_tracer.TraceError($"Shipper location not found");
+                    throw new KeyNotFoundException(this.m_localizationService.FormatString("error.messaging.gs1.locationNotFound", new
+                    {
+                        param = "Shipper"
+                    }));
+                }
                 else if (destinationLocation == null)
-                    throw new KeyNotFoundException($"Receiver location not found");
-
+                {
+                    this.m_tracer.TraceError($"Shipper location not found");
+                    throw new KeyNotFoundException(this.m_localizationService.FormatString("error.messaging.gs1.locationNotFound", new
+                    {
+                        param = "Receiver"
+                    }));
+                }
                 // Find the original order which this despatch advice is fulfilling
                 Act orderRequestAct = null;
                 if (adv.orderResponse != null || adv.purchaseOrder != null)
@@ -127,8 +145,10 @@ namespace SanteDB.Messaging.GS1.Rest
                     issuingAuthority = oidService.Get(this.m_configuration.DefaultContentOwnerAssigningAuthority);
 
                 if (issuingAuthority == null)
-                    throw new KeyNotFoundException("Cannot find default issuing authority for advice identification. Please configure a valid OID");
-
+                {
+                    this.m_tracer.TraceError("Could not find default issuing authority for advice identification. Please configure a valid OID");
+                    throw new KeyNotFoundException(this.m_localizationService.GetString("error.messaging.gs1.issuingAuthority"));
+                }
                 int tr = 0;
                 var existing = this.m_actRepository.Find(o => o.Identifiers.Any(i => i.AuthorityKey == issuingAuthority.Key && i.Value == adv.despatchAdviceIdentification.entityIdentification), 0, 1, out tr);
                 if (existing.Any())
@@ -186,8 +206,10 @@ namespace SanteDB.Messaging.GS1.Rest
                     {
                         if (line.despatchedQuantity.measurementUnitCode != "dose" &&
                             line.despatchedQuantity.measurementUnitCode != "unit")
-                            throw new InvalidOperationException("Despatched quantity must be reported in units or doses");
-
+                        {
+                            this.m_tracer.TraceError("Despatched quantity must be reported in units or doses");
+                            throw new InvalidOperationException(this.m_localizationService.GetString("error.messaging.gs1.despatchedQuantity"));
+                        }
                         var material = this.m_gs1Util.GetManufacturedMaterial(line.transactionalTradeItem, this.m_configuration.AutoCreateMaterials);
 
                         // Add a participation
@@ -209,7 +231,10 @@ namespace SanteDB.Messaging.GS1.Rest
                 catch (Exception e)
                 {
                     this.m_tracer.TraceError("Error issuing despatch advice: {0}", e);
-                    throw new Exception($"Error issuing despatch advice: {e.Message}", e);
+                    throw new Exception(this.m_localizationService.FormatString("error.messaging.gs1.errorIssuing", new
+                    {
+                        param = e.Message
+                    }), e);
                 }
         }
 
@@ -260,7 +285,16 @@ namespace SanteDB.Messaging.GS1.Rest
                             place = this.m_placeRepository.Get(uuid, Guid.Empty);
 
                         if(place == null)
-                            throw new FileNotFoundException($"Place {filter.inventoryLocation.gln} not found");
+                        {
+                            this.m_tracer.TraceError($"Place {filter.inventoryLocation.gln} not found");
+                            throw new FileNotFoundException(this.m_localizationService.FormatString("error.messaging.gs1.placeNotFound",
+                                new
+                                {
+                                    param = filter.inventoryLocation.gln
+
+                                }));
+                        }
+                            
                     }
                     if (filterPlaces == null)
                         filterPlaces = new List<Place>() { place };
@@ -277,9 +311,23 @@ namespace SanteDB.Messaging.GS1.Rest
             var gtin = oidService.Get("GTIN");
 
             if (gln == null || gln.Oid == null)
-                throw new InvalidOperationException("GLN configuration must carry OID and be named GLN in repository");
+            {
+                this.m_tracer.TraceError("GLN configuration must carry OID and be named GLN in repository");
+                throw new InvalidOperationException(this.m_localizationService.FormatString("error.messaging.gs1.configuration", new
+                {
+                    param = "GLN",
+                   
+                }));
+                
+            }
             if (gtin == null || gtin.Oid == null)
-                throw new InvalidOperationException("GTIN configuration must carry OID and be named GTIN in repository");
+            {
+                this.m_tracer.TraceError("GTIN configuration must carry OID and be named GTIN in repository");
+                throw new InvalidOperationException(this.m_localizationService.FormatString("error.messaging.gs1.configuration", new
+                {
+                    param = "GTIN"
+                }));
+            }
 
             var masterAuthContext = AuthenticationContext.Current.Principal;
 
@@ -483,7 +531,10 @@ namespace SanteDB.Messaging.GS1.Rest
                 // Find the original order which this despatch advice is fulfilling
                 Act orderRequestAct = this.m_gs1Util.GetOrder(resp.originalOrder, ActMoodKeys.Request);
                 if (orderRequestAct == null)
-                    throw new KeyNotFoundException("Could not find originalOrder");
+                {
+                    this.m_tracer.TraceError("Could not find originalOrder");
+                    throw new KeyNotFoundException(this.m_localizationService.GetString("error.messaging.gs1.originalOrder"));
+                }
 
                 // Update the supplier if it exists
                 Place sourceLocation = this.m_gs1Util.GetLocation(resp.seller);
@@ -499,7 +550,12 @@ namespace SanteDB.Messaging.GS1.Rest
                 }
                 else if (resp.seller != null && sourceLocation == null)
                 {
-                    throw new KeyNotFoundException($"Could not find seller id with {resp.seller?.additionalPartyIdentification?.FirstOrDefault()?.Value ?? resp.seller.gln}");
+                    this.m_tracer.TraceError($"Could not find seller id with {resp.seller?.additionalPartyIdentification?.FirstOrDefault()?.Value ?? resp.seller.gln}");
+                    throw new KeyNotFoundException(this.m_localizationService.FormatString("error.messaging.gs1.seller", new
+                    {
+                        param = resp.seller?.additionalPartyIdentification?.FirstOrDefault()?.Value ?? resp.seller.gln
+
+                    }));
                 }
 
                 var oidService = ApplicationServiceContext.Current.GetService<IAssigningAuthorityRepositoryService>();
@@ -509,8 +565,10 @@ namespace SanteDB.Messaging.GS1.Rest
                     issuingAuthority = oidService.Get(this.m_configuration.DefaultContentOwnerAssigningAuthority);
 
                 if (issuingAuthority == null)
-                    throw new KeyNotFoundException("Cannot find default issuing authority for advice identification. Please configure a valid OID");
-
+                {
+                    this.m_tracer.TraceError("Could not find default issuing authority for advice identification. Please configure a valid OID");
+                    throw new KeyNotFoundException(this.m_localizationService.GetString("error.messaging.gs1.issuingAuthority"));
+                }
                 orderRequestAct.Identifiers.Add(new ActIdentifier(issuingAuthority, resp.orderResponseIdentification.entityIdentification));
 
                 // If the original order request is not comlete, then complete it
@@ -538,7 +596,10 @@ namespace SanteDB.Messaging.GS1.Rest
             catch (Exception e)
             {
                 this.m_tracer.TraceError("Error issuing despatch advice: {0}", e);
-                throw new Exception($"Error issuing despatch advice: {e.Message}", e);
+                throw new Exception(this.m_localizationService.FormatString("error.messaging.gs1.errorIssuing", new
+                {
+                    param = e.Message
+                }), e);
             }
 
         }

@@ -1,26 +1,29 @@
 ﻿/*
  * Portions Copyright 2019-2021, Fyfe Software Inc. and the SanteSuite Contributors (See NOTICE)
- * 
- * Licensed under the Apache License, Version 2.0 (the "License"); you 
- * may not use this file except in compliance with the License. You may 
- * obtain a copy of the License at 
- * 
- * http://www.apache.org/licenses/LICENSE-2.0 
- * 
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you
+ * may not use this file except in compliance with the License. You may
+ * obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the 
- * License for the specific language governing permissions and limitations under 
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
  * the License.
- * 
+ *
  * User: fyfej (Justin Fyfe)
  * Date: 2021-8-5
  */
+
 using SanteDB.Core.Services;
 using SanteDB.Core;
 using SanteDB.Core.Diagnostics;
 using SanteDB.Core.Http;
+
 using SanteDB.Core.Services;
+
 using SanteDB.Messaging.GS1.Configuration;
 using SanteDB.Messaging.GS1.Model;
 using System;
@@ -37,7 +40,6 @@ namespace SanteDB.Messaging.GS1.Transport.AS2
     [ServiceProvider("GS1 AS2(ish) Integration Service")]
     public class As2IntegrationService : IDaemonService
     {
-
         /// <summary>
         /// Gets the service name
         /// </summary>
@@ -51,7 +53,6 @@ namespace SanteDB.Messaging.GS1.Transport.AS2
 
         // Configuration
         private Gs1ConfigurationSection m_configuration = ApplicationServiceContext.Current.GetService<IConfigurationManager>().GetSection<Gs1ConfigurationSection>();
-
 
         /// <summary>
         /// True when the service is running
@@ -68,14 +69,17 @@ namespace SanteDB.Messaging.GS1.Transport.AS2
         /// Fired when the service has completed startup
         /// </summary>
         public event EventHandler Started;
+
         /// <summary>
         /// Fired when the service is starting up
         /// </summary>
         public event EventHandler Starting;
+
         /// <summary>
         /// Fired when the service has successfully stopped
         /// </summary>
         public event EventHandler Stopped;
+
         /// <summary>
         /// Fired when the service is stopping
         /// </summary>
@@ -115,7 +119,6 @@ namespace SanteDB.Messaging.GS1.Transport.AS2
             {
                 ApplicationServiceContext.Current.GetService<IPersistentQueueService>().Queued += this.m_handler;
                 ApplicationServiceContext.Current.GetService<IPersistentQueueService>().Open(this.m_configuration.Gs1QueueName);
-
             };
 
             this.Started?.Invoke(this, EventArgs.Empty);
@@ -132,7 +135,8 @@ namespace SanteDB.Messaging.GS1.Transport.AS2
                 this.m_tracer.TraceInfo("Dispatching message {0} to GS1 endpoint", queueMessage.GetType().Name);
                 // First, we're going to create a rest client
                 var restClient = new RestClient(this.m_configuration.Gs1BrokerAddress);
-                if(!String.IsNullOrEmpty(this.m_configuration.Gs1BrokerAddress.UserName))
+                this.m_configuration.Gs1BrokerAddress.Accept = "application/xml";
+                if (!String.IsNullOrEmpty(this.m_configuration.Gs1BrokerAddress.UserName))
                     (restClient.Description.Binding as ServiceClientBindingDescription).Security = new As2BasicClientSecurityDescription(this.m_configuration.Gs1BrokerAddress);
                 var client = new Gs1ServiceClient(restClient);
 
@@ -143,7 +147,7 @@ namespace SanteDB.Messaging.GS1.Transport.AS2
                 else if (queueMessage is ReceivingAdviceMessageType)
                     client.IssueReceivingAdvice(queueMessage as ReceivingAdviceMessageType);
             }
-            catch(Exception e)
+            catch (Exception e)
             {
                 this.m_tracer.TraceError("Could not dispatch message to GS1 endpoint: {0}", e);
                 throw;

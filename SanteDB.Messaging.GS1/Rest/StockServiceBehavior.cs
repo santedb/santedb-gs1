@@ -1,21 +1,22 @@
 ﻿/*
  * Portions Copyright 2019-2021, Fyfe Software Inc. and the SanteSuite Contributors (See NOTICE)
- * 
- * Licensed under the Apache License, Version 2.0 (the "License"); you 
- * may not use this file except in compliance with the License. You may 
- * obtain a copy of the License at 
- * 
- * http://www.apache.org/licenses/LICENSE-2.0 
- * 
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you
+ * may not use this file except in compliance with the License. You may
+ * obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the 
- * License for the specific language governing permissions and limitations under 
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
  * the License.
- * 
+ *
  * User: fyfej (Justin Fyfe)
  * Date: 2021-8-5
  */
+
 using RestSrvr.Attributes;
 using SanteDB.Core;
 using SanteDB.Core.Diagnostics;
@@ -45,25 +46,30 @@ namespace SanteDB.Messaging.GS1.Rest
     [ServiceBehavior(Name = "GS1BMS", InstanceMode = ServiceInstanceMode.PerCall)]
     public class StockServiceBehavior : IStockService, IServiceImplementation
     {
-
         // Configuration
         private Gs1ConfigurationSection m_configuration = ApplicationServiceContext.Current.GetService<IConfigurationManager>().GetSection<Gs1ConfigurationSection>();
 
         // Act repository
         private IRepositoryService<Act> m_actRepository;
+
         // Material repository
         private IRepositoryService<Material> m_materialRepository;
+
         // Manufactured materials
         private IRepositoryService<ManufacturedMaterial> m_manufMaterialRepository;
+
         // Place repository
         private IRepositoryService<Place> m_placeRepository;
+
         // Stock service
         private IStockManagementRepositoryService m_stockService;
+
         // GS1 Utility
         private Gs1Util m_gs1Util;
 
         // Tracer
-        private Tracer m_tracer = new Tracer(Gs1Constants.TraceSourceName);
+        private readonly Tracer m_tracer = new Tracer(Gs1Constants.TraceSourceName);
+
         // Localization Service
         private readonly ILocalizationService m_localizationService;
 
@@ -99,21 +105,20 @@ namespace SanteDB.Messaging.GS1.Rest
                 this.m_tracer.TraceError("Invalid message sent");
                 throw new InvalidOperationException(this.m_localizationService.GetString("error.messaging.gs1.invalidMessage"));
             }
-               
+
             // TODO: Validate the standard header
-            // Loop 
+            // Loop
             Bundle orderTransaction = new Bundle();
 
             foreach (var adv in advice.despatchAdvice)
             {
-
                 // Has this already been created?
                 Place sourceLocation = this.m_gs1Util.GetLocation(adv.shipper),
                     destinationLocation = this.m_gs1Util.GetLocation(adv.receiver);
                 if (sourceLocation == null)
                 {
                     this.m_tracer.TraceError($"Shipper location not found");
-                    throw new KeyNotFoundException(this.m_localizationService.FormatString("error.messaging.gs1.locationNotFound", new
+                    throw new KeyNotFoundException(this.m_localizationService.GetString("error.messaging.gs1.locationNotFound", new
                     {
                         param = "Shipper"
                     }));
@@ -121,7 +126,7 @@ namespace SanteDB.Messaging.GS1.Rest
                 else if (destinationLocation == null)
                 {
                     this.m_tracer.TraceError($"Shipper location not found");
-                    throw new KeyNotFoundException(this.m_localizationService.FormatString("error.messaging.gs1.locationNotFound", new
+                    throw new KeyNotFoundException(this.m_localizationService.GetString("error.messaging.gs1.locationNotFound", new
                     {
                         param = "Receiver"
                     }));
@@ -144,8 +149,8 @@ namespace SanteDB.Messaging.GS1.Rest
                 var oidService = ApplicationServiceContext.Current.GetService<IAssigningAuthorityRepositoryService>();
                 var gln = oidService.Get("GLN");
                 AssigningAuthority issuingAuthority = null;
-                if(adv.despatchAdviceIdentification.contentOwner != null)
-                    issuingAuthority = oidService.Find(o=>o.Oid == $"{gln.Oid}.{adv.despatchAdviceIdentification.contentOwner.gln}").FirstOrDefault();
+                if (adv.despatchAdviceIdentification.contentOwner != null)
+                    issuingAuthority = oidService.Find(o => o.Oid == $"{gln.Oid}.{adv.despatchAdviceIdentification.contentOwner.gln}").FirstOrDefault();
                 if (issuingAuthority == null)
                     issuingAuthority = oidService.Get(this.m_configuration.DefaultContentOwnerAssigningAuthority);
 
@@ -203,7 +208,6 @@ namespace SanteDB.Messaging.GS1.Rest
                         new ActRelationship(ActRelationshipTypeKeys.Fulfills, orderRequestAct.Key)
                     };
 
-
                 // Now add participations for each material in the despatch
                 foreach (var dal in adv.despatchAdviceLogisticUnit)
                 {
@@ -224,7 +228,6 @@ namespace SanteDB.Messaging.GS1.Rest
                         });
                     }
                 }
-
             }
 
             // insert transaction
@@ -236,7 +239,7 @@ namespace SanteDB.Messaging.GS1.Rest
                 catch (Exception e)
                 {
                     this.m_tracer.TraceError("Error issuing despatch advice: {0}", e);
-                    throw new Exception(this.m_localizationService.FormatString("error.messaging.gs1.errorIssuing", new
+                    throw new Exception(this.m_localizationService.GetString("error.messaging.gs1.errorIssuing", new
                     {
                         param = e.Message
                     }), e);
@@ -253,7 +256,6 @@ namespace SanteDB.Messaging.GS1.Rest
             {
                 StandardBusinessDocumentHeader = this.m_gs1Util.CreateDocumentHeader("logisticsInventoryReport", null)
             };
-
 
             // Date / time of report
 
@@ -289,17 +291,15 @@ namespace SanteDB.Messaging.GS1.Rest
                         if (Guid.TryParse(id, out uuid))
                             place = this.m_placeRepository.Get(uuid, Guid.Empty);
 
-                        if(place == null)
+                        if (place == null)
                         {
                             this.m_tracer.TraceError($"Place {filter.inventoryLocation.gln} not found");
-                            throw new FileNotFoundException(this.m_localizationService.FormatString("error.messaging.gs1.placeNotFound",
+                            throw new FileNotFoundException(this.m_localizationService.GetString("error.messaging.gs1.placeNotFound",
                                 new
                                 {
                                     param = filter.inventoryLocation.gln
-
                                 }));
                         }
-                            
                     }
                     if (filterPlaces == null)
                         filterPlaces = new List<Place>() { place };
@@ -318,17 +318,15 @@ namespace SanteDB.Messaging.GS1.Rest
             if (gln == null || gln.Oid == null)
             {
                 this.m_tracer.TraceError("GLN configuration must carry OID and be named GLN in repository");
-                throw new InvalidOperationException(this.m_localizationService.FormatString("error.messaging.gs1.configuration", new
+                throw new InvalidOperationException(this.m_localizationService.GetString("error.messaging.gs1.configuration", new
                 {
                     param = "GLN",
-                   
                 }));
-                
             }
             if (gtin == null || gtin.Oid == null)
             {
                 this.m_tracer.TraceError("GTIN configuration must carry OID and be named GTIN in repository");
-                throw new InvalidOperationException(this.m_localizationService.FormatString("error.messaging.gs1.configuration", new
+                throw new InvalidOperationException(this.m_localizationService.GetString("error.messaging.gs1.configuration", new
                 {
                     param = "GTIN"
                 }));
@@ -343,7 +341,6 @@ namespace SanteDB.Messaging.GS1.Rest
                 {
                     try
                     {
-
                         var locationStockStatus = new LogisticsInventoryReportInventoryLocationType();
                         lock (locationStockStatuses)
                             locationStockStatuses.Add(locationStockStatus);
@@ -360,7 +357,6 @@ namespace SanteDB.Messaging.GS1.Rest
                         {
                             using (AuthenticationContext.EnterContext(masterAuthContext))
                             {
-
                                 if (!(rel.TargetEntity is ManufacturedMaterial))
                                 {
                                     var matl = this.m_manufMaterialRepository.Get(rel.TargetEntityKey.Value, Guid.Empty);
@@ -446,7 +442,6 @@ namespace SanteDB.Messaging.GS1.Rest
                                         }
                                     });
 
-
                                 foreach (var adjgrp in adjustments.GroupBy(o => o.ReasonConceptKey))
                                 {
                                     var reasonConcept = ApplicationServiceContext.Current.GetService<IConceptRepositoryService>().GetConceptReferenceTerm(adjgrp.Key.Value, "GS1_STOCK_STATUS")?.Mnemonic;
@@ -529,10 +524,9 @@ namespace SanteDB.Messaging.GS1.Rest
 
             Bundle orderTransaction = new Bundle();
 
-            // Loop 
+            // Loop
             foreach (var resp in orderResponse.orderResponse)
             {
-
                 // Find the original order which this despatch advice is fulfilling
                 Act orderRequestAct = this.m_gs1Util.GetOrder(resp.originalOrder, ActMoodKeys.Request);
                 if (orderRequestAct == null)
@@ -556,16 +550,15 @@ namespace SanteDB.Messaging.GS1.Rest
                 else if (resp.seller != null && sourceLocation == null)
                 {
                     this.m_tracer.TraceError($"Could not find seller id with {resp.seller?.additionalPartyIdentification?.FirstOrDefault()?.Value ?? resp.seller.gln}");
-                    throw new KeyNotFoundException(this.m_localizationService.FormatString("error.messaging.gs1.seller", new
+                    throw new KeyNotFoundException(this.m_localizationService.GetString("error.messaging.gs1.seller", new
                     {
                         param = resp.seller?.additionalPartyIdentification?.FirstOrDefault()?.Value ?? resp.seller.gln
-
                     }));
                 }
 
                 var oidService = ApplicationServiceContext.Current.GetService<IAssigningAuthorityRepositoryService>();
                 var gln = oidService.Get("GLN");
-                var issuingAuthority = oidService.Find(o=>o.Oid == $"{gln.Oid}.{resp.orderResponseIdentification.contentOwner.gln}").FirstOrDefault();
+                var issuingAuthority = oidService.Find(o => o.Oid == $"{gln.Oid}.{resp.orderResponseIdentification.contentOwner.gln}").FirstOrDefault();
                 if (issuingAuthority == null)
                     issuingAuthority = oidService.Get(this.m_configuration.DefaultContentOwnerAssigningAuthority);
 
@@ -601,12 +594,11 @@ namespace SanteDB.Messaging.GS1.Rest
             catch (Exception e)
             {
                 this.m_tracer.TraceError("Error issuing despatch advice: {0}", e);
-                throw new Exception(this.m_localizationService.FormatString("error.messaging.gs1.errorIssuing", new
+                throw new Exception(this.m_localizationService.GetString("error.messaging.gs1.errorIssuing", new
                 {
                     param = e.Message
                 }), e);
             }
-
         }
     }
 }

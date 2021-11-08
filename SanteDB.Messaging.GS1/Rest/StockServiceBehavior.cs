@@ -43,7 +43,7 @@ namespace SanteDB.Messaging.GS1.Rest
     /// </summary>
     /// <remarks>The SanteDB server implementation of the GS1 BMS 3.3 interface over REST</remarks>
     [ServiceBehavior(Name = "GS1BMS", InstanceMode = ServiceInstanceMode.PerCall)]
-    public class StockServiceBehavior : IStockService
+    public class StockServiceBehavior : IStockService, IServiceImplementation
     {
 
         // Configuration
@@ -70,7 +70,7 @@ namespace SanteDB.Messaging.GS1.Rest
         /// <summary>
         /// Default ctor setting services
         /// </summary>
-        public StockServiceBehavior()
+        public StockServiceBehavior(ILocalizationService localizationService)
         {
             this.m_actRepository = ApplicationServiceContext.Current.GetService<IRepositoryService<Act>>();
             this.m_materialRepository = ApplicationServiceContext.Current.GetService<IRepositoryService<Material>>();
@@ -78,11 +78,16 @@ namespace SanteDB.Messaging.GS1.Rest
             this.m_stockService = ApplicationServiceContext.Current.GetService<IStockManagementRepositoryService>();
             this.m_manufMaterialRepository = ApplicationServiceContext.Current.GetService<IRepositoryService<ManufacturedMaterial>>();
             this.m_gs1Util = new Gs1Util();
-            this.m_localizationService = ApplicationServiceContext.Current.GetService<ILocalizationService>();
+            this.m_localizationService = localizationService;
         }
 
         // HDSI Trace host
         private readonly Tracer traceSource = new Tracer(Gs1Constants.TraceSourceName);
+
+        /// <summary>
+        /// Get service name
+        /// </summary>
+        public string ServiceName => "Stock Service Behavior";
 
         /// <summary>
         /// The issue despactch advice message will insert a new shipped order into the TImR system.

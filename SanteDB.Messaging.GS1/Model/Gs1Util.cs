@@ -1,21 +1,22 @@
 ﻿/*
  * Portions Copyright 2019-2021, Fyfe Software Inc. and the SanteSuite Contributors (See NOTICE)
- * 
- * Licensed under the Apache License, Version 2.0 (the "License"); you 
- * may not use this file except in compliance with the License. You may 
- * obtain a copy of the License at 
- * 
- * http://www.apache.org/licenses/LICENSE-2.0 
- * 
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you
+ * may not use this file except in compliance with the License. You may
+ * obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the 
- * License for the specific language governing permissions and limitations under 
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
  * the License.
- * 
+ *
  * User: fyfej (Justin Fyfe)
  * Date: 2021-8-5
  */
+
 using SanteDB.Core;
 using SanteDB.Core.Model;
 using SanteDB.Core.Model.Acts;
@@ -37,15 +38,19 @@ namespace SanteDB.Messaging.GS1.Model
     public class Gs1Util
     {
         // Configuration
-        private Gs1ConfigurationSection m_configuration = ApplicationServiceContext.Current.GetService<IConfigurationManager>().GetSection< Gs1ConfigurationSection>();
+        private Gs1ConfigurationSection m_configuration = ApplicationServiceContext.Current.GetService<IConfigurationManager>().GetSection<Gs1ConfigurationSection>();
 
         // Act repository
         private IRepositoryService<Act> m_actRepository;
+
         // Material repository
         private IRepositoryService<Material> m_materialRepository;
+
         private IRepositoryService<ManufacturedMaterial> m_manufMaterialRepository;
+
         // Place repository
-        private IRepositoryService<Place>  m_placeRepository;
+        private IRepositoryService<Place> m_placeRepository;
+
         // Stock service
         private IStockManagementRepositoryService m_stockService;
 
@@ -98,7 +103,6 @@ namespace SanteDB.Messaging.GS1.Model
         /// </summary>
         public Place GetLocation(TransactionalPartyType gs1Party)
         {
-
             if (gs1Party == null) return null;
 
             Place retVal = null;
@@ -143,7 +147,7 @@ namespace SanteDB.Messaging.GS1.Model
                 var gln = oidService.Get("GLN");
                 AssigningAuthority issuingAuthority = null;
                 if (documentReference.contentOwner != null)
-                    issuingAuthority = oidService.Find(o=>o.Oid == $"{gln.Oid}.{documentReference.contentOwner.gln}").FirstOrDefault();
+                    issuingAuthority = oidService.Find(o => o.Oid == $"{gln.Oid}.{documentReference.contentOwner.gln}").FirstOrDefault();
                 if (issuingAuthority == null)
                     issuingAuthority = oidService.Get(this.m_configuration.DefaultContentOwnerAssigningAuthority);
                 if (issuingAuthority == null)
@@ -168,7 +172,7 @@ namespace SanteDB.Messaging.GS1.Model
             // Quantity code
             var quantityCode = ApplicationServiceContext.Current.GetService<IConceptRepositoryService>().GetConceptReferenceTerm(orderReceivePtcpt.LoadProperty<Material>("PlayerEntity").QuantityConceptKey.Value, "UCUM");
 
-            // Does the base material have it? 
+            // Does the base material have it?
             if (quantityCode == null)
             {
                 var mat = this.m_materialRepository.Find(o => o.Relationships.Where(g => g.RelationshipType.Mnemonic == "Instance").Any(p => p.TargetEntityKey == orderReceivePtcpt.PlayerEntityKey)).FirstOrDefault();
@@ -179,7 +183,6 @@ namespace SanteDB.Messaging.GS1.Model
                     quantityCode = ApplicationServiceContext.Current.GetService<IConceptRepositoryService>().GetConceptReferenceTerm(mat.QuantityConceptKey.Value, "UCUM");
                     if (quantityCode == null)
                         throw new InvalidOperationException($"Missing quantity code for {orderReceivePtcpt.LoadProperty<Material>("PlayerEntity").Key}");
-
                 }
             }
             // Receiving logistic unit type
@@ -326,7 +329,6 @@ namespace SanteDB.Messaging.GS1.Model
             else if (String.IsNullOrEmpty(tradeItem.gtin))
                 throw new ArgumentException("Trade item is missing GTIN", "tradeItem");
 
-
             var oidService = ApplicationServiceContext.Current.GetService<IAssigningAuthorityRepositoryService>();
             var gtin = oidService.Get("GTIN");
 
@@ -382,7 +384,6 @@ namespace SanteDB.Messaging.GS1.Model
 
                     // Get the material and set the type
                     retVal.TypeConceptKey = concept.Key;
-
                 }
 
                 // Find the type of material
@@ -390,11 +391,11 @@ namespace SanteDB.Messaging.GS1.Model
                 if (tradeItem.tradeItemClassification != null)
                     foreach (var id in tradeItem.tradeItemClassification.additionalTradeItemClassificationCode)
                     {
-                        materialReference = this.m_materialRepository.Find(o => o.Identifiers.Any(i => i.Value == id.Value && i.Authority.DomainName == id.codeListVersion) && o.ClassConceptKey == EntityClassKeys.Material && o.StatusConceptKey != StatusKeys.Obsolete, 0, 1, out tr).SingleOrDefault();
+                        materialReference = this.m_materialRepository.Find(o => o.Identifiers.Any(i => i.Value == id.Value && i.Authority.DomainName == id.codeListVersion) && o.ClassConceptKey == EntityClassKeys.Material && !StatusKeys.InactiveStates.Contains(o.StatusConceptKey.Value), 0, 1, out tr).SingleOrDefault();
                         if (materialReference != null) break;
                     }
                 if (materialReference == null)
-                    materialReference = this.m_materialRepository.Find(o => o.TypeConceptKey == retVal.TypeConceptKey && o.ClassConceptKey == EntityClassKeys.Material && o.StatusConceptKey != StatusKeys.Obsolete, 0, 1, out tr).SingleOrDefault();
+                    materialReference = this.m_materialRepository.Find(o => o.TypeConceptKey == retVal.TypeConceptKey && o.ClassConceptKey == EntityClassKeys.Material && !StatusKeys.InactiveStates.Contains(o.StatusConceptKey.Value), 0, 1, out tr).SingleOrDefault();
                 if (materialReference == null)
                     throw new InvalidOperationException("Cannot find the base Material from trade item type code");
 
@@ -419,7 +420,6 @@ namespace SanteDB.Messaging.GS1.Model
                         materialRelationship
                     }
                 });
-
             }
             else if (tradeItem.additionalTradeItemIdentification != null) // We may want to keep track of other identifiers this software knows as
             {
@@ -437,7 +437,6 @@ namespace SanteDB.Messaging.GS1.Model
 
                 if (shouldSave)
                     this.m_materialRepository.Save(retVal);
-
             }
 
             return retVal;
@@ -491,6 +490,5 @@ namespace SanteDB.Messaging.GS1.Model
                 }
             };
         }
-
     }
 }

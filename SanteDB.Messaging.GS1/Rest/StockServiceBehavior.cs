@@ -159,8 +159,8 @@ namespace SanteDB.Messaging.GS1.Rest
                     this.m_tracer.TraceError("Could not find default issuing authority for advice identification. Please configure a valid OID");
                     throw new KeyNotFoundException(this.m_localizationService.GetString("error.messaging.gs1.issuingAuthority"));
                 }
-                int tr = 0;
-                var existing = this.m_actRepository.Find(o => o.Identifiers.Any(i => i.AuthorityKey == issuingAuthority.Key && i.Value == adv.despatchAdviceIdentification.entityIdentification), 0, 1, out tr);
+
+                var existing = this.m_actRepository.Find(o => o.Identifiers.Any(i => i.AuthorityKey == issuingAuthority.Key && i.Value == adv.despatchAdviceIdentification.entityIdentification));
                 if (existing.Any())
                 {
                     this.m_tracer.TraceWarning("Duplicate despatch {0} will be ignored", adv.despatchAdviceIdentification.entityIdentification);
@@ -282,9 +282,8 @@ namespace SanteDB.Messaging.GS1.Rest
             {
                 foreach (var filter in parameters.logisticsInventoryReportRequest.First().logisticsInventoryRequestLocation)
                 {
-                    int tc = 0;
                     var id = filter.inventoryLocation.gln ?? filter.inventoryLocation.additionalPartyIdentification?.FirstOrDefault()?.Value;
-                    var place = this.m_placeRepository.Find(o => o.Identifiers.Any(i => i.Value == id), 0, 1, out tc).FirstOrDefault();
+                    var place = this.m_placeRepository.Find(o => o.Identifiers.Any(i => i.Value == id)).FirstOrDefault();
                     if (place == null)
                     {
                         Guid uuid = Guid.Empty;

@@ -391,11 +391,11 @@ namespace SanteDB.Messaging.GS1.Model
                 if (tradeItem.tradeItemClassification != null)
                     foreach (var id in tradeItem.tradeItemClassification.additionalTradeItemClassificationCode)
                     {
-                        materialReference = this.m_materialRepository.Find(o => o.Identifiers.Any(i => i.Value == id.Value && i.Authority.DomainName == id.codeListVersion) && o.ClassConceptKey == EntityClassKeys.Material && o.StatusConceptKey != StatusKeys.Obsolete).SingleOrDefault();
+                        materialReference = this.m_materialRepository.Find(o => o.Identifiers.Any(i => i.Value == id.Value && i.Authority.DomainName == id.codeListVersion) && o.ClassConceptKey == EntityClassKeys.Material && !StatusKeys.InactiveStates.Contains(o.StatusConceptKey.Value), 0, 1, out tr).SingleOrDefault();
                         if (materialReference != null) break;
                     }
                 if (materialReference == null)
-                    materialReference = this.m_materialRepository.Find(o => o.TypeConceptKey == retVal.TypeConceptKey && o.ClassConceptKey == EntityClassKeys.Material && o.StatusConceptKey != StatusKeys.Obsolete).SingleOrDefault();
+                    materialReference = this.m_materialRepository.Find(o => o.TypeConceptKey == retVal.TypeConceptKey && o.ClassConceptKey == EntityClassKeys.Material && !StatusKeys.InactiveStates.Contains(o.StatusConceptKey.Value), 0, 1, out tr).SingleOrDefault();
                 if (materialReference == null)
                     throw new InvalidOperationException("Cannot find the base Material from trade item type code");
 

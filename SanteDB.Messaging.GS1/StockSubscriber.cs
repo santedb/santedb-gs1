@@ -1,21 +1,22 @@
 ﻿/*
  * Portions Copyright 2019-2021, Fyfe Software Inc. and the SanteSuite Contributors (See NOTICE)
- * 
- * Licensed under the Apache License, Version 2.0 (the "License"); you 
- * may not use this file except in compliance with the License. You may 
- * obtain a copy of the License at 
- * 
- * http://www.apache.org/licenses/LICENSE-2.0 
- * 
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you
+ * may not use this file except in compliance with the License. You may
+ * obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the 
- * License for the specific language governing permissions and limitations under 
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
  * the License.
- * 
+ *
  * User: fyfej (Justin Fyfe)
  * Date: 2021-8-5
  */
+
 using SanteDB.Core.Services;
 using SanteDB.Core;
 using SanteDB.Core.Model;
@@ -24,7 +25,9 @@ using SanteDB.Core.Model.Collection;
 using SanteDB.Core.Model.Constants;
 using SanteDB.Core.Model.DataTypes;
 using SanteDB.Core.Model.Entities;
+
 using SanteDB.Core.Services;
+
 using SanteDB.Messaging.GS1.Configuration;
 using SanteDB.Messaging.GS1.Model;
 using System;
@@ -35,14 +38,13 @@ using System.Globalization;
 using System.Linq;
 using SanteDB.Core.Diagnostics;
 using SanteDB.Server.Core.Services;
+using SanteDB.Core.Queue;
 
 namespace SanteDB.Messaging.GS1
 {
     /// <summary>
     /// Represents a notification service that listens to stock events and then prepares them for broadcast
     /// </summary>
-    [ServiceProvider("GS1 Stock Event Subscriber", 
-        Dependencies = new Type[] { typeof(IPersistentQueueService) })]
     public class StockSubscriber : IDaemonService
     {
         /// <summary>
@@ -74,14 +76,17 @@ namespace SanteDB.Messaging.GS1
         /// Daemon is started
         /// </summary>
         public event EventHandler Started;
+
         /// <summary>
         /// Daemon is starting
         /// </summary>
         public event EventHandler Starting;
+
         /// <summary>
         /// Daemon is stopped
         /// </summary>
         public event EventHandler Stopped;
+
         /// <summary>
         /// Daemon is stopping
         /// </summary>
@@ -100,7 +105,6 @@ namespace SanteDB.Messaging.GS1
                 // Application has started let's bind to the events we need
                 ApplicationServiceContext.Current.GetService<IDataPersistenceService<Act>>().Inserted += (xo, xe) => this.NotifyAct(new Act[] { xe.Data });
                 ApplicationServiceContext.Current.GetService<IDataPersistenceService<Bundle>>().Inserted += (xo, xe) => this.NotifyAct(xe.Data.Item.OfType<Act>());
-
             };
 
             this.Started?.Invoke(this, EventArgs.Empty);
@@ -108,14 +112,14 @@ namespace SanteDB.Messaging.GS1
         }
 
         /// <summary>
-        /// Notify of created 
+        /// Notify of created
         /// </summary>
         private void NotifyAct(IEnumerable<Act> createdActs)
         {
-            var acts = createdActs.Where(o => o.ClassConceptKey == ActClassKeys.Supply && o.Tags?.Any(t=>t.TagKey == "http://santedb.org/tags/contrib/importedData" && t.Value.ToLower(CultureInfo.InvariantCulture) == "true") == false).ToList(); // Get all supply events
+            var acts = createdActs.Where(o => o.ClassConceptKey == ActClassKeys.Supply && o.Tags?.Any(t => t.TagKey == "http://santedb.org/tags/contrib/importedData" && t.Value.ToLower(CultureInfo.InvariantCulture) == "true") == false).ToList(); // Get all supply events
 
-            // Iterate over the supply acts and figure 
-            foreach(var act in acts.Where(a => a != null))
+            // Iterate over the supply acts and figure
+            foreach (var act in acts.Where(a => a != null))
             {
                 if (act.MoodConceptKey == ActMoodKeys.Request) // We have an order!
                     this.IssueOrder(act);
@@ -174,7 +178,6 @@ namespace SanteDB.Messaging.GS1
             for (int i = 0; i < receiveMessage.receivingAdvice[0].receivingAdviceLogisticUnit.Length; i++)
                 receiveMessage.receivingAdvice[0].receivingAdviceLogisticUnit[i].receivingAdviceLineItem[0].lineItemNumber = (i + 1).ToString();
 
-            
             // Queue The order on the file system
             this.QueueMessage(receiveMessage);
         }
@@ -184,7 +187,6 @@ namespace SanteDB.Messaging.GS1
         /// </summary>
         private void IssueOrder(Act act)
         {
-
             var orderMessage = new OrderMessageType();
 
             orderMessage.StandardBusinessDocumentHeader = this.m_gs1Util.CreateDocumentHeader("order", act.LoadCollection<ActParticipation>("Participations").FirstOrDefault(o => o.ParticipationRoleKey == ActParticipationKey.Authororiginator).LoadProperty<Entity>("PlayerEntity"));
@@ -220,7 +222,7 @@ namespace SanteDB.Messaging.GS1
                         }
                     }
                 },
-                orderLineItem = act.LoadCollection<ActParticipation>("Participations").Where(o=>o.ParticipationRoleKey == ActParticipationKey.Product ).Select(o => this.m_gs1Util.CreateOrderLineItem(o)).ToArray()
+                orderLineItem = act.LoadCollection<ActParticipation>("Participations").Where(o => o.ParticipationRoleKey == ActParticipationKey.Product).Select(o => this.m_gs1Util.CreateOrderLineItem(o)).ToArray()
             };
 
             for (int i = 0; i < order.orderLineItem.Length; i++)
@@ -237,7 +239,7 @@ namespace SanteDB.Messaging.GS1
         /// </summary>
         private void QueueMessage(object orderMessage)
         {
-            ApplicationServiceContext.Current.GetService<IPersistentQueueService>().Enqueue(this.m_configuration.Gs1QueueName, orderMessage);
+            ApplicationServiceContext.Current.GetService<IDispatcherQueueManagerService>().Enqueue(this.m_configuration.Gs1QueueName, orderMessage);
         }
 
         /// <summary>

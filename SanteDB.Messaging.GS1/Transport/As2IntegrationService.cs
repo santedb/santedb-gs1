@@ -31,6 +31,7 @@ using System.ComponentModel;
 using System.Diagnostics;
 using SanteDB.Server.Core.Services;
 using SanteDB.Server.Core.Http;
+using SanteDB.Core.Queue;
 
 namespace SanteDB.Messaging.GS1.Transport.AS2
 {
@@ -46,7 +47,7 @@ namespace SanteDB.Messaging.GS1.Transport.AS2
         public string ServiceName => "GS1 AS.2 Integration Service";
 
         // The event handler
-        private EventHandler<PersistentQueueEventArgs> m_handler;
+        private DispatcherQueueCallback m_handler;
 
         // Tracer
         private readonly Tracer m_tracer = new Tracer(Gs1Constants.TraceSourceName);
@@ -94,22 +95,23 @@ namespace SanteDB.Messaging.GS1.Transport.AS2
             this.Starting?.Invoke(this, EventArgs.Empty);
 
             // Create handler
-            this.m_handler = (o, e) =>
+            this.m_handler = (e) =>
             {
                 do
                 {
-                    Object dq = null;
+                    object body = null;
                     try
                     {
-                        dq = ApplicationServiceContext.Current.GetService<IPersistentQueueService>().Dequeue(this.m_configuration.Gs1QueueName);
+                        var dq = ApplicationServiceContext.Current.GetService<IDispatcherQueueManagerService>().Dequeue(this.m_configuration.Gs1QueueName);
                         if (dq == null) break;
+                        body = dq.Body;
                         this.SendQueueMessage(dq);
                     }
                     catch (Exception ex)
                     {
                         this.m_tracer.TraceError(">>>> !!ALERT!! >>>> Error sending message to GS1 broker. Message will be placed in dead-letter queue");
                         this.m_tracer.TraceError(ex.ToString());
-                        ApplicationServiceContext.Current.GetService<IPersistentQueueService>().Enqueue("dead", dq);
+                        ApplicationServiceContext.Current.GetService<IDispatcherQueueManagerService>().Enqueue($"{this.m_configuration.Gs1QueueName}.dead", body);
                     }
                 } while (true);
             };
@@ -117,8 +119,10 @@ namespace SanteDB.Messaging.GS1.Transport.AS2
             // Queue Handler
             ApplicationServiceContext.Current.Started += (o, e) =>
             {
-                ApplicationServiceContext.Current.GetService<IPersistentQueueService>().Queued += this.m_handler;
-                ApplicationServiceContext.Current.GetService<IPersistentQueueService>().Open(this.m_configuration.Gs1QueueName);
+                var queueService = ApplicationServiceContext.Current.GetService<IDispatcherQueueManagerService>();
+                queueService.Open(this.m_configuration.Gs1QueueName);
+                queueService.SubscribeTo(this.m_configuration.Gs1QueueName, this.m_handler);
+                queueService.Open($"{this.m_configuration.Gs1QueueName}.dead");
             };
 
             this.Started?.Invoke(this, EventArgs.Empty);
@@ -128,7 +132,7 @@ namespace SanteDB.Messaging.GS1.Transport.AS2
         /// <summary>
         /// Get the message type and URL endpoint
         /// </summary>
-        private void SendQueueMessage(object queueMessage)
+        private void SendQueueMessage(DispatcherQueueEntry queueMessage)
         {
             try
             {
@@ -140,12 +144,12 @@ namespace SanteDB.Messaging.GS1.Transport.AS2
                     (restClient.Description.Binding as ServiceClientBindingDescription).Security = new As2BasicClientSecurityDescription(this.m_configuration.Gs1BrokerAddress);
                 var client = new Gs1ServiceClient(restClient);
 
-                if (queueMessage is OrderMessageType)
-                    client.IssueOrder(queueMessage as OrderMessageType);
-                else if (queueMessage is DespatchAdviceMessageType)
-                    client.IssueDespatchAdvice(queueMessage as DespatchAdviceMessageType);
-                else if (queueMessage is ReceivingAdviceMessageType)
-                    client.IssueReceivingAdvice(queueMessage as ReceivingAdviceMessageType);
+                if (queueMessage.Body is OrderMessageType omt)
+                    client.IssueOrder(omt);
+                else if (queueMessage.Body is DespatchAdviceMessageType damt)
+                    client.IssueDespatchAdvice(damt);
+                else if (queueMessage.Body is ReceivingAdviceMessageType ramt)
+                    client.IssueReceivingAdvice(ramt);
             }
             catch (Exception e)
             {
@@ -161,7 +165,7 @@ namespace SanteDB.Messaging.GS1.Transport.AS2
         {
             this.Stopping?.Invoke(this, EventArgs.Empty);
 
-            ApplicationServiceContext.Current.GetService<IPersistentQueueService>().Queued -= this.m_handler;
+            ApplicationServiceContext.Current.GetService<IDispatcherQueueManagerService>().UnSubscribe(this.m_configuration.Gs1QueueName, this.m_handler);
             this.m_handler = null;
 
             this.Stopped?.Invoke(this, EventArgs.Empty);

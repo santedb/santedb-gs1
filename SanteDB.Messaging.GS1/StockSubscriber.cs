@@ -38,6 +38,7 @@ using System.Globalization;
 using System.Linq;
 using SanteDB.Core.Diagnostics;
 using SanteDB.Server.Core.Services;
+using SanteDB.Core.Queue;
 
 namespace SanteDB.Messaging.GS1
 {
@@ -240,7 +241,7 @@ namespace SanteDB.Messaging.GS1
         /// </summary>
         private void QueueMessage(object orderMessage)
         {
-            ApplicationServiceContext.Current.GetService<IPersistentQueueService>().Enqueue(this.m_configuration.Gs1QueueName, orderMessage);
+            ApplicationServiceContext.Current.GetService<IDispatcherQueueManagerService>().Enqueue(this.m_configuration.Gs1QueueName, orderMessage);
         }
 
         /// <summary>

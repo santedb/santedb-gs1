@@ -195,8 +195,8 @@ namespace SanteDB.Messaging.GS1.Rest
                     {
                         // TODO: Author
                         // TODO: Performer
-                        new ActParticipation(ActParticipationKey.Location, sourceLocation.Key),
-                        new ActParticipation(ActParticipationKey.Destination, destinationLocation.Key)
+                        new ActParticipation(ActParticipationKeys.Location, sourceLocation.Key),
+                        new ActParticipation(ActParticipationKeys.Destination, destinationLocation.Key)
                     }
                 };
                 orderTransaction.Add(fulfillAct);
@@ -222,7 +222,7 @@ namespace SanteDB.Messaging.GS1.Rest
                         var material = this.m_gs1Util.GetManufacturedMaterial(line.transactionalTradeItem, this.m_configuration.AutoCreateMaterials);
 
                         // Add a participation
-                        fulfillAct.Participations.Add(new ActParticipation(ActParticipationKey.Consumable, material.Key)
+                        fulfillAct.Participations.Add(new ActParticipation(ActParticipationKeys.Consumable, material.Key)
                         {
                             Quantity = (int)line.despatchedQuantity.Value
                         });
@@ -486,7 +486,7 @@ namespace SanteDB.Messaging.GS1.Rest
                                                     additionalLogisticUnitIdentificationTypeCode = o.ReferenceTerm.CodeSystem.Name,
                                                     Value = o.ReferenceTerm.Mnemonic
                                                 }).FirstOrDefault()?.Value,
-                                                Value = Math.Abs(adjgrp.Sum(o => o.Participations.First(p => p.ParticipationRoleKey == ActParticipationKey.Consumable && p.PlayerEntityKey == mmat.Key).Quantity.Value))
+                                                Value = Math.Abs(adjgrp.Sum(o => o.Participations.First(p => p.ParticipationRoleKey == ActParticipationKeys.Consumable && p.PlayerEntityKey == mmat.Key).Quantity.Value))
                                             },
                                             batchNumber = mmat.LotNumber,
                                             itemExpirationDate = mmat.ExpiryDate.Value,
@@ -536,14 +536,14 @@ namespace SanteDB.Messaging.GS1.Rest
 
                 // Update the supplier if it exists
                 Place sourceLocation = this.m_gs1Util.GetLocation(resp.seller);
-                if (sourceLocation != null && !orderRequestAct.Participations.Any(o => o.ParticipationRoleKey == ActParticipationKey.Distributor))
+                if (sourceLocation != null && !orderRequestAct.Participations.Any(o => o.ParticipationRoleKey == ActParticipationKeys.Distributor))
                 {
                     // Add participation
                     orderRequestAct.Participations.Add(new ActParticipation()
                     {
                         ActKey = orderRequestAct.Key,
                         PlayerEntityKey = sourceLocation.Key,
-                        ParticipationRoleKey = ActParticipationKey.Distributor
+                        ParticipationRoleKey = ActParticipationKeys.Distributor
                     });
                 }
                 else if (resp.seller != null && sourceLocation == null)

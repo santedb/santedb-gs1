@@ -136,12 +136,12 @@ namespace SanteDB.Messaging.GS1
         private void IssueReceiveAdvice(Act act)
         {
             var receiveMessage = new ReceivingAdviceMessageType();
-            receiveMessage.StandardBusinessDocumentHeader = this.m_gs1Util.CreateDocumentHeader("receivingAdvice", act.LoadCollection<ActParticipation>("Participations").FirstOrDefault(o => o.ParticipationRoleKey == ActParticipationKey.Authororiginator).LoadProperty<Entity>("PlayerEntity"));
+            receiveMessage.StandardBusinessDocumentHeader = this.m_gs1Util.CreateDocumentHeader("receivingAdvice", act.LoadCollection<ActParticipation>("Participations").FirstOrDefault(o => o.ParticipationRoleKey == ActParticipationKeys.Authororiginator).LoadProperty<Entity>("PlayerEntity"));
 
             var originalOrder = act.LoadCollection<ActRelationship>("Relationships").FirstOrDefault(o => o.RelationshipTypeKey == ActRelationshipTypeKeys.Arrival)?.LoadProperty<Act>("TargetAct");
 
-            Place shipTo = act.LoadCollection<ActParticipation>("Participations").FirstOrDefault(o => o.ParticipationRoleKey == ActParticipationKey.Location)?.LoadProperty<Place>("PlayerEntity"),
-                shipFrom = originalOrder.LoadCollection<ActParticipation>("Participations").FirstOrDefault(o => o.ParticipationRoleKey == ActParticipationKey.Location)?.LoadProperty<Place>("PlayerEntity");
+            Place shipTo = act.LoadCollection<ActParticipation>("Participations").FirstOrDefault(o => o.ParticipationRoleKey == ActParticipationKeys.Location)?.LoadProperty<Place>("PlayerEntity"),
+                shipFrom = originalOrder.LoadCollection<ActParticipation>("Participations").FirstOrDefault(o => o.ParticipationRoleKey == ActParticipationKeys.Location)?.LoadProperty<Place>("PlayerEntity");
 
             // Receive message advice
             receiveMessage.receivingAdvice = new ReceivingAdviceType[]
@@ -154,11 +154,11 @@ namespace SanteDB.Messaging.GS1
                     {
                         entityIdentification = act.Key.ToString()
                     },
-                    receivingDateTime = act.ActTime.DateTime,
+                    receivingDateTime = act.ActTime.GetValueOrDefault().DateTime,
                     despatchAdvice = new Ecom_DocumentReferenceType()
                     {
                         entityIdentification = originalOrder.Identifiers.FirstOrDefault()?.Value ?? originalOrder.Key.Value.ToString(),
-                        creationDateTime = originalOrder.ActTime.DateTime,
+                        creationDateTime = originalOrder.ActTime.GetValueOrDefault().DateTime,
                         creationDateTimeSpecified = true,
                         contentOwner = new Ecom_PartyIdentificationType()
                         {
@@ -172,7 +172,7 @@ namespace SanteDB.Messaging.GS1
                     shipper = this.m_gs1Util.CreateLocation(shipFrom),
                     shipTo = this.m_gs1Util.CreateLocation(shipTo),
                     receiver = this.m_gs1Util.CreateLocation(shipTo),
-                    receivingAdviceLogisticUnit = act.Participations.Where(o=>o.ParticipationRoleKey == ActParticipationKey.Consumable).Select(o=> this.m_gs1Util.CreateReceiveLineItem(o, originalOrder.Participations.FirstOrDefault(p=>p.PlayerEntityKey == o.PlayerEntityKey))).ToArray()
+                    receivingAdviceLogisticUnit = act.Participations.Where(o=>o.ParticipationRoleKey == ActParticipationKeys.Consumable).Select(o=> this.m_gs1Util.CreateReceiveLineItem(o, originalOrder.Participations.FirstOrDefault(p=>p.PlayerEntityKey == o.PlayerEntityKey))).ToArray()
                 }
             };
 
@@ -190,12 +190,12 @@ namespace SanteDB.Messaging.GS1
         {
             var orderMessage = new OrderMessageType();
 
-            orderMessage.StandardBusinessDocumentHeader = this.m_gs1Util.CreateDocumentHeader("order", act.LoadCollection<ActParticipation>("Participations").FirstOrDefault(o => o.ParticipationRoleKey == ActParticipationKey.Authororiginator).LoadProperty<Entity>("PlayerEntity"));
+            orderMessage.StandardBusinessDocumentHeader = this.m_gs1Util.CreateDocumentHeader("order", act.LoadCollection<ActParticipation>("Participations").FirstOrDefault(o => o.ParticipationRoleKey == ActParticipationKeys.Authororiginator).LoadProperty<Entity>("PlayerEntity"));
 
             var type = ApplicationServiceContext.Current.GetService<IConceptRepositoryService>().GetConceptReferenceTerm(act.TypeConceptKey.Value, "GS1");
 
-            Place shipTo = act.LoadCollection<ActParticipation>("Participations").FirstOrDefault(o => o.ParticipationRoleKey == ActParticipationKey.Location)?.LoadProperty<Place>("PlayerEntity"),
-                shipFrom = act.LoadCollection<ActParticipation>("Participations").FirstOrDefault(o => o.ParticipationRoleKey == ActParticipationKey.Distributor)?.LoadProperty<Place>("PlayerEntity");
+            Place shipTo = act.LoadCollection<ActParticipation>("Participations").FirstOrDefault(o => o.ParticipationRoleKey == ActParticipationKeys.Location)?.LoadProperty<Place>("PlayerEntity"),
+                shipFrom = act.LoadCollection<ActParticipation>("Participations").FirstOrDefault(o => o.ParticipationRoleKey == ActParticipationKeys.Distributor)?.LoadProperty<Place>("PlayerEntity");
 
             OrderType order = new OrderType()
             {
@@ -219,11 +219,11 @@ namespace SanteDB.Messaging.GS1
                     {
                         requestedDeliveryDateTime = new DateOptionalTimeType()
                         {
-                            date = act.ActTime.Date
+                            date = act.ActTime.GetValueOrDefault().Date
                         }
                     }
                 },
-                orderLineItem = act.LoadCollection<ActParticipation>("Participations").Where(o => o.ParticipationRoleKey == ActParticipationKey.Product).Select(o => this.m_gs1Util.CreateOrderLineItem(o)).ToArray()
+                orderLineItem = act.LoadCollection<ActParticipation>("Participations").Where(o => o.ParticipationRoleKey == ActParticipationKeys.Product).Select(o => this.m_gs1Util.CreateOrderLineItem(o)).ToArray()
             };
 
             for (int i = 0; i < order.orderLineItem.Length; i++)

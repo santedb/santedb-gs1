@@ -41,6 +41,9 @@ namespace SanteDB.Messaging.GS1.Configuration
             this.EndpointCollection = new System.Collections.Generic.List<ServiceClientEndpointDescription>();
         }
 
+        /// <summary>
+        /// Gets or sets whether client certificate auth is enabled
+        /// </summary>
         [XmlIgnore]
         [DisplayName("PKI Authentication"), Description("When true, use public key infrastructure (client certificates) to authenticate")]
         public bool UsePkiAuth

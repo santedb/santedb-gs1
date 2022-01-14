@@ -35,9 +35,13 @@ using SanteDB.Messaging.GS1.Configuration;
 
 namespace SanteDB.Messaging.GS1
 {
-    /// <summary>
-    /// Stock service message handler
-    /// </summary>
+	/// <summary>
+	/// GS1 Business Messaging Standard (BMS) HTTP / REST implementation of <see cref="IApiEndpointProvider"/>
+	/// </summary>
+	/// <remarks>
+	/// <para>This service is responsible for maintaining the lifecycle of the <see cref="IStockService"/> REST contract
+	/// which implements SanteDB's <see href="https://help.santesuite.org/developers/service-apis/gs1-bms-xml">GS1 BMS API</see>.</para>
+	/// </remarks>
 	[Description("Allows SanteDB iCDR to send and receive GS1 BMS XML messages over REST based transport")]
     [ApiServiceProvider("GS1 BMS XML3.3 API Endpoint", typeof(StockServiceBehavior), configurationType: typeof(Gs1ConfigurationSection))]
 	public class StockServiceMessageHandler : IDaemonService, IApiEndpointProvider

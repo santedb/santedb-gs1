@@ -32,13 +32,15 @@ using System.Diagnostics;
 using SanteDB.Server.Core.Services;
 using SanteDB.Server.Core.Http;
 using SanteDB.Core.Queue;
+using SanteDB.Core.PubSub;
 
 namespace SanteDB.Messaging.GS1.Transport.AS2
 {
     /// <summary>
-    /// GS1 Stock Integration Service
+    /// GS1 AS.2 stock event notification service
     /// </summary>
-    [ServiceProvider("GS1 AS2(ish) Integration Service")]
+    /// <remarks>This class is obsolete and will be migrated to the <see cref="IPubSubDispatcherFactory"/> implementations in future versions of SanteDB.</remarks>
+    [ServiceProvider("GS1 AS2(ish) Integration Service"), Obsolete]
     public class As2IntegrationService : IDaemonService
     {
         /// <summary>

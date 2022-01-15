@@ -39,13 +39,19 @@ using System.Linq;
 using SanteDB.Core.Diagnostics;
 using SanteDB.Server.Core.Services;
 using SanteDB.Core.Queue;
+using SanteDB.Core.PubSub.Broker;
+using SanteDB.Core.PubSub;
 
 namespace SanteDB.Messaging.GS1
 {
     /// <summary>
     /// Represents a notification service that listens to stock events and then prepares them for broadcast
     /// </summary>
-    [ServiceProvider("GS1 Stock Event Subscriber")]
+    /// <remarks>
+    /// This service is obsolete and will be replaced using the <see cref="PubSubBroker"/> implementation and 
+    /// <see cref="IPubSubDispatcherFactory"/> implementation instead.
+    /// </remarks>
+    [ServiceProvider("GS1 Stock Event Subscriber"), Obsolete]
     public class StockSubscriber : IDaemonService
     {
         /// <summary>

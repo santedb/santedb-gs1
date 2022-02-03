@@ -334,7 +334,7 @@ namespace SanteDB.Messaging.GS1.Rest
             var masterAuthContext = AuthenticationContext.Current.Principal;
 
             // Create the inventory report
-            filterPlaces.AsParallel().ForAll(place =>
+            filterPlaces.ToList().ForEach(place =>
             {
                 using (AuthenticationContext.EnterContext(masterAuthContext))
                 {
@@ -352,7 +352,7 @@ namespace SanteDB.Messaging.GS1.Rest
                         // What are the relationships of held entities
                         var persistenceService = ApplicationServiceContext.Current.GetService<IDataPersistenceService<EntityRelationship>>();
                         var relationships = persistenceService.Query(o => o.RelationshipTypeKey == EntityRelationshipTypeKeys.OwnedEntity && o.SourceEntityKey == place.Key.Value, AuthenticationContext.Current.Principal);
-                        relationships.AsParallel().ForAll(rel =>
+                        relationships.ToList().ForEach(rel =>
                         {
                             using (AuthenticationContext.EnterContext(masterAuthContext))
                             {

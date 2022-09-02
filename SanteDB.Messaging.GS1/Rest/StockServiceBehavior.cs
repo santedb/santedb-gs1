@@ -146,9 +146,9 @@ namespace SanteDB.Messaging.GS1.Rest
 
                 // Find the author of the shipment
 
-                var oidService = ApplicationServiceContext.Current.GetService<IAssigningAuthorityRepositoryService>();
+                var oidService = ApplicationServiceContext.Current.GetService<IIdentityDomainRepositoryService>();
                 var gln = oidService.Get("GLN");
-                AssigningAuthority issuingAuthority = null;
+                IdentityDomain issuingAuthority = null;
                 if (adv.despatchAdviceIdentification.contentOwner != null)
                     issuingAuthority = oidService.Find(o => o.Oid == $"{gln.Oid}.{adv.despatchAdviceIdentification.contentOwner.gln}").FirstOrDefault();
                 if (issuingAuthority == null)
@@ -310,7 +310,7 @@ namespace SanteDB.Messaging.GS1.Rest
                 filterPlaces = this.m_placeRepository.Find(o => o.ClassConceptKey == EntityClassKeys.ServiceDeliveryLocation).ToList();
 
             // Get the GLN AA data
-            var oidService = ApplicationServiceContext.Current.GetService<IAssigningAuthorityRepositoryService>();
+            var oidService = ApplicationServiceContext.Current.GetService<IIdentityDomainRepositoryService>();
             var gln = oidService.Get("GLN");
             var gtin = oidService.Get("GTIN");
 
@@ -555,7 +555,7 @@ namespace SanteDB.Messaging.GS1.Rest
                     }));
                 }
 
-                var oidService = ApplicationServiceContext.Current.GetService<IAssigningAuthorityRepositoryService>();
+                var oidService = ApplicationServiceContext.Current.GetService<IIdentityDomainRepositoryService>();
                 var gln = oidService.Get("GLN");
                 var issuingAuthority = oidService.Find(o => o.Oid == $"{gln.Oid}.{resp.orderResponseIdentification.contentOwner.gln}").FirstOrDefault();
                 if (issuingAuthority == null)

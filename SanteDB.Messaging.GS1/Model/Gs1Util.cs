@@ -73,7 +73,7 @@ namespace SanteDB.Messaging.GS1.Model
         {
             if (place == null) return null;
 
-            var oidService = ApplicationServiceContext.Current.GetService<IAssigningAuthorityRepositoryService>();
+            var oidService = ApplicationServiceContext.Current.GetService<IIdentityDomainRepositoryService>();
             var gln = oidService.Get("GLN");
             return new TransactionalPartyType()
             {
@@ -143,9 +143,9 @@ namespace SanteDB.Messaging.GS1.Model
                 retVal = this.m_actRepository.Get(orderId, Guid.Empty);
             if (retVal == null)
             {
-                var oidService = ApplicationServiceContext.Current.GetService<IAssigningAuthorityRepositoryService>();
+                var oidService = ApplicationServiceContext.Current.GetService<IIdentityDomainRepositoryService>();
                 var gln = oidService.Get("GLN");
-                AssigningAuthority issuingAuthority = null;
+                IdentityDomain issuingAuthority = null;
                 if (documentReference.contentOwner != null)
                     issuingAuthority = oidService.Find(o => o.Oid == $"{gln.Oid}.{documentReference.contentOwner.gln}").FirstOrDefault();
                 if (issuingAuthority == null)
@@ -277,14 +277,14 @@ namespace SanteDB.Messaging.GS1.Model
                     additionalTradeItemIdentification = material.LoadCollection<EntityIdentifier>("Identifiers").Where(o => o.Authority.DomainName != "GTIN").Select(o => new AdditionalTradeItemIdentificationType()
                     {
                         Value = o.Value,
-                        additionalTradeItemIdentificationTypeCode = o.LoadProperty<AssigningAuthority>("Authority").DomainName
+                        additionalTradeItemIdentificationTypeCode = o.LoadProperty<IdentityDomain>("Authority").DomainName
                     }).ToArray(),
                     tradeItemClassification = new TradeItemClassificationType()
                     {
                         additionalTradeItemClassificationCode = mat.LoadCollection<EntityIdentifier>("Identifiers").Select(o => new AdditionalTradeItemClassificationCodeType()
                         {
                             Value = o.Value,
-                            codeListVersion = o.LoadProperty<AssigningAuthority>("Authority").DomainName
+                            codeListVersion = o.LoadProperty<IdentityDomain>("Authority").DomainName
                         }).ToArray()
                     },
                     gtin = material.Identifiers.FirstOrDefault(o => o.Authority.DomainName == "GTIN").Value,
@@ -309,7 +309,7 @@ namespace SanteDB.Messaging.GS1.Model
                         additionalTradeItemClassificationCode = material.LoadCollection<EntityIdentifier>("Identifiers").Select(o => new AdditionalTradeItemClassificationCodeType()
                         {
                             Value = o.Value,
-                            codeListVersion = o.LoadProperty<AssigningAuthority>("Authority").DomainName
+                            codeListVersion = o.LoadProperty<IdentityDomain>("Authority").DomainName
                         }).ToArray()
                     },
                     itemTypeCode = typeItemCode,
@@ -329,7 +329,7 @@ namespace SanteDB.Messaging.GS1.Model
             else if (String.IsNullOrEmpty(tradeItem.gtin))
                 throw new ArgumentException("Trade item is missing GTIN", "tradeItem");
 
-            var oidService = ApplicationServiceContext.Current.GetService<IAssigningAuthorityRepositoryService>();
+            var oidService = ApplicationServiceContext.Current.GetService<IIdentityDomainRepositoryService>();
             var gtin = oidService.Get("GTIN");
 
             // Lookup material by lot number / gtin

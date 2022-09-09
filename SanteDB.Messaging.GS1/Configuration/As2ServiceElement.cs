@@ -16,6 +16,7 @@
  * User: fyfej (<Unknown>)
  * Date: 2022-5-30
  */
+using Newtonsoft.Json;
 using SanteDB.Core.Configuration;
 using SanteDB.Core.Configuration.Http;
 using SanteDB.Core.Http;
@@ -43,14 +44,14 @@ namespace SanteDB.Messaging.GS1.Configuration
         /// <summary>
         /// Gets or sets the name of the client to use - otherwise the default Gs1 broker is used
         /// </summary>
-        [XmlAttribute("client")]
+        [XmlElement("client"), JsonProperty("client")]
         [DisplayName("Rest Client"), TypeConverter(typeof(ExpandableObjectConverter)), Description("When set, specifies the endpoint where broker messages should be pushed. Otherwise the system default GS1 broker is used")]
         public RestClientDescriptionConfiguration ClientConfiguration { get; set; }
 
         /// <summary>
         /// Use AS2 standard mime based encoding
         /// </summary>
-        [XmlAttribute("useAs2MimeEncoding")]
+        [XmlAttribute("useAs2MimeEncoding"), JsonProperty("useAs2MimeEncoding")]
         [DisplayName("Use AS.2 MIME"), Description("When true, instructs the service to use AS.2 mime encoded messages instead of REST messages")]
         public bool UseAS2MimeEncoding
         {

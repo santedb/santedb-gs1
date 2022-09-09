@@ -19,7 +19,6 @@
 using SanteDB.Core.Services;
 using RestSrvr;
 using SanteDB.Core.Interop;
-using SanteDB.Server.Core.Rest;
 using SanteDB.Messaging.GS1.Rest;
 using System;
 using System.ComponentModel;

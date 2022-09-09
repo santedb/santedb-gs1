@@ -35,16 +35,13 @@ namespace SanteDB.Messaging.GS1.Transport.AS2
     public class Gs1ServiceClient : ServiceClientBase
     {
         // Configuration
-        private As2ServiceElement m_configuration = ApplicationServiceContext.Current.GetService<IConfigurationManager>().GetSection<Gs1ConfigurationSection>()?.Gs1BrokerAddress;
+        private As2ServiceElement m_configuration = ApplicationServiceContext.Current.GetService<IConfigurationManager>().GetSection<Gs1ConfigurationSection>()?.Gs1Broker;
 
         /// <summary>
         /// Create the GS1 service client
         /// </summary>
         public Gs1ServiceClient(IRestClient restClient) : base(restClient)
         {
-            if (!string.IsNullOrEmpty(this.m_configuration.UserName))
-                this.Client.Credentials = new HttpBasicCredentials(this.m_configuration.UserName, this.m_configuration.Password);
-
             this.m_configuration = this.Client.Description as As2ServiceElement;
         }
 

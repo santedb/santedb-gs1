@@ -35,7 +35,7 @@ namespace SanteDB.Messaging.GS1.Configuration
         /// </summary>
         public Gs1ConfigurationSection()
         {
-            this.Gs1BrokerAddress = new As2ServiceElement();
+            this.Gs1Broker = new As2ServiceElement();
         }
 
         /// <summary>
@@ -70,7 +70,8 @@ namespace SanteDB.Messaging.GS1.Configuration
         /// </summary>
         [XmlElement("broker"), ConfigurationRequired]
         [TypeConverter(typeof(ExpandableObjectConverter)), DisplayName("GS1 Broker"), Description("Configuration for the broker to use for GS1 messages")]
-        public As2ServiceElement Gs1BrokerAddress {
+        public As2ServiceElement Gs1Broker
+        {
             get;set;
         }
 

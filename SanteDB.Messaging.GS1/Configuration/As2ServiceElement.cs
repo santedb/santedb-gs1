@@ -17,6 +17,7 @@
  * Date: 2022-5-30
  */
 using SanteDB.Core.Configuration;
+using SanteDB.Core.Configuration.Http;
 using SanteDB.Core.Http;
 using SanteDB.Core.Security.Configuration;
 using System;
@@ -30,26 +31,21 @@ namespace SanteDB.Messaging.GS1.Configuration
     /// AS2 Service configuration
     /// </summary>
     [XmlType(nameof(As2ServiceElement), Namespace = "http://santedb.org/configuration")]
-    public class As2ServiceElement : ServiceClientDescription
+    public class As2ServiceElement
     {
         /// <summary>
         /// AS2 service configuration
         /// </summary>
         public As2ServiceElement()
         {
-            this.EndpointCollection = new System.Collections.Generic.List<ServiceClientEndpointDescription>();
         }
 
         /// <summary>
-        /// Gets or sets whether client certificate auth is enabled
+        /// Gets or sets the name of the client to use - otherwise the default Gs1 broker is used
         /// </summary>
-        [XmlIgnore]
-        [DisplayName("PKI Authentication"), Description("When true, use public key infrastructure (client certificates) to authenticate")]
-        public bool UsePkiAuth
-        {
-            get => this.ClientCertificate != null;
-            set => this.ClientCertificate = value ? new X509ConfigurationElement() : null;
-        }
+        [XmlAttribute("client")]
+        [DisplayName("Rest Client"), TypeConverter(typeof(ExpandableObjectConverter)), Description("When set, specifies the endpoint where broker messages should be pushed. Otherwise the system default GS1 broker is used")]
+        public RestClientDescriptionConfiguration ClientConfiguration { get; set; }
 
         /// <summary>
         /// Use AS2 standard mime based encoding
@@ -61,35 +57,6 @@ namespace SanteDB.Messaging.GS1.Configuration
             get; set;
         }
 
-        /// <summary>
-        /// Gets or sets the username
-        /// </summary>
-        [XmlAttribute("userName")]
-        [DisplayName("User Name"), Description("The user name to use when connecting to the GS1 broker")]
-        public String UserName
-        {
-            get; set;
-        }
 
-        /// <summary>
-        /// Gets or sets the password
-        /// </summary>
-        [XmlAttribute("password")]
-        [PasswordPropertyTextAttribute, DisplayName("Password"), Description("The password to use when connecting to the GS1 broker")]
-        public String Password
-        {
-            get; set;
-        }
-
-        /// <summary>
-        /// Configuration property for trusted cert
-        /// </summary>
-        [XmlElement("clientCertificate")]
-        [TypeConverter(typeof(ExpandableObjectConverter)), DisplayName("Client Cert"), Description("If using client certificates to communicate with GS1 broker, the client certificate configuration")]
-        public X509ConfigurationElement ClientCertificate
-        {
-            get;
-            set;
-        }
     }
 }

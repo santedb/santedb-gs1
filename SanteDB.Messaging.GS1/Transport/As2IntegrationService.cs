@@ -29,7 +29,6 @@ using System;
 using System.ComponentModel;
 using System.Diagnostics;
 using SanteDB.Server.Core.Services;
-using SanteDB.Server.Core.Http;
 using SanteDB.Core.Queue;
 using SanteDB.Core.PubSub;
 
@@ -54,7 +53,17 @@ namespace SanteDB.Messaging.GS1.Transport.AS2
         private readonly Tracer m_tracer = new Tracer(Gs1Constants.TraceSourceName);
 
         // Configuration
-        private Gs1ConfigurationSection m_configuration = ApplicationServiceContext.Current.GetService<IConfigurationManager>().GetSection<Gs1ConfigurationSection>();
+        private readonly Gs1ConfigurationSection m_configuration;
+        private readonly IRestClientFactory m_restFactory;
+
+        /// <summary>
+        /// DI ctor
+        /// </summary>
+        public As2IntegrationService(IConfigurationManager configurationManager, IRestClientFactory restClientResolver)
+        {
+            this.m_configuration = configurationManager.GetSection<Gs1ConfigurationSection>();
+            this.m_restFactory = restClientResolver;
+        }
 
         /// <summary>
         /// True when the service is running
@@ -139,12 +148,8 @@ namespace SanteDB.Messaging.GS1.Transport.AS2
             {
                 this.m_tracer.TraceInfo("Dispatching message {0} to GS1 endpoint", queueMessage.GetType().Name);
                 // First, we're going to create a rest client
-                var restClient = new RestClient(this.m_configuration.Gs1BrokerAddress);
-                this.m_configuration.Gs1BrokerAddress.Accept = "application/xml";
-                if (!String.IsNullOrEmpty(this.m_configuration.Gs1BrokerAddress.UserName))
-                    (restClient.Description.Binding as ServiceClientBindingDescription).Security = new As2BasicClientSecurityDescription(this.m_configuration.Gs1BrokerAddress);
+                var restClient = this.m_restFactory.CreateRestClient(this.m_configuration.Gs1Broker.ClientConfiguration) ?? this.m_restFactory.GetRestClientFor(Core.Interop.ServiceEndpointType.Gs1StockInterface);
                 var client = new Gs1ServiceClient(restClient);
-
                 if (queueMessage.Body is OrderMessageType omt)
                     client.IssueOrder(omt);
                 else if (queueMessage.Body is DespatchAdviceMessageType damt)

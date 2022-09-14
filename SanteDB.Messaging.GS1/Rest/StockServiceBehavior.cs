@@ -159,7 +159,7 @@ namespace SanteDB.Messaging.GS1.Rest
                     throw new KeyNotFoundException(this.m_localizationService.GetString("error.messaging.gs1.issuingAuthority"));
                 }
 
-                var existing = this.m_actRepository.Find(o => o.Identifiers.Any(i => i.AuthorityKey == issuingAuthority.Key && i.Value == adv.despatchAdviceIdentification.entityIdentification));
+                var existing = this.m_actRepository.Find(o => o.Identifiers.Any(i => i.IdentityDomainKey == issuingAuthority.Key && i.Value == adv.despatchAdviceIdentification.entityIdentification));
                 if (existing.Any())
                 {
                     this.m_tracer.TraceWarning("Duplicate despatch {0} will be ignored", adv.despatchAdviceIdentification.entityIdentification);
@@ -402,19 +402,19 @@ namespace SanteDB.Messaging.GS1.Rest
                                 lock (tradeItemStatuses)
                                     tradeItemStatuses.Add(new TradeItemInventoryStatusType()
                                     {
-                                        gtin = mmat.Identifiers.FirstOrDefault(o => o.Authority.DomainName == "GTIN")?.Value,
+                                        gtin = mmat.Identifiers.FirstOrDefault(o => o.IdentityDomain.DomainName == "GTIN")?.Value,
                                         itemTypeCode = typeItemCode,
-                                        additionalTradeItemIdentification = mmat.Identifiers.Where(o => o.Authority.DomainName != "GTIN").Select(o => new AdditionalTradeItemIdentificationType()
+                                        additionalTradeItemIdentification = mmat.Identifiers.Where(o => o.IdentityDomain.DomainName != "GTIN").Select(o => new AdditionalTradeItemIdentificationType()
                                         {
-                                            additionalTradeItemIdentificationTypeCode = o.Authority.DomainName,
+                                            additionalTradeItemIdentificationTypeCode = o.IdentityDomain.DomainName,
                                             Value = o.Value
                                         }).ToArray(),
                                         tradeItemDescription = mmat.Names.Select(o => new Description200Type() { Value = o.Component.FirstOrDefault()?.Value }).FirstOrDefault(),
                                         tradeItemClassification = new TradeItemClassificationType()
                                         {
-                                            additionalTradeItemClassificationCode = mat.Identifiers.Where(o => o.Authority.Oid != gtin.Oid).Select(o => new AdditionalTradeItemClassificationCodeType()
+                                            additionalTradeItemClassificationCode = mat.Identifiers.Where(o => o.IdentityDomain.Oid != gtin.Oid).Select(o => new AdditionalTradeItemClassificationCodeType()
                                             {
-                                                codeListVersion = o.Authority.DomainName,
+                                                codeListVersion = o.IdentityDomain.DomainName,
                                                 Value = o.Value
                                             }).ToArray()
                                         },
@@ -450,18 +450,18 @@ namespace SanteDB.Messaging.GS1.Rest
                                     lock (tradeItemStatuses)
                                         tradeItemStatuses.Add(new TradeItemInventoryStatusType()
                                         {
-                                            gtin = mmat.Identifiers.FirstOrDefault(o => o.Authority.DomainName == "GTIN")?.Value,
+                                            gtin = mmat.Identifiers.FirstOrDefault(o => o.IdentityDomain.DomainName == "GTIN")?.Value,
                                             itemTypeCode = typeItemCode,
-                                            additionalTradeItemIdentification = mmat.Identifiers.Where(o => o.Authority.DomainName != "GTIN").Select(o => new AdditionalTradeItemIdentificationType()
+                                            additionalTradeItemIdentification = mmat.Identifiers.Where(o => o.IdentityDomain.DomainName != "GTIN").Select(o => new AdditionalTradeItemIdentificationType()
                                             {
-                                                additionalTradeItemIdentificationTypeCode = o.Authority.DomainName,
+                                                additionalTradeItemIdentificationTypeCode = o.IdentityDomain.DomainName,
                                                 Value = o.Value
                                             }).ToArray(),
                                             tradeItemClassification = new TradeItemClassificationType()
                                             {
-                                                additionalTradeItemClassificationCode = mat.Identifiers.Where(o => o.Authority.Oid != gtin.Oid).Select(o => new AdditionalTradeItemClassificationCodeType()
+                                                additionalTradeItemClassificationCode = mat.Identifiers.Where(o => o.IdentityDomain.Oid != gtin.Oid).Select(o => new AdditionalTradeItemClassificationCodeType()
                                                 {
-                                                    codeListVersion = o.Authority.DomainName,
+                                                    codeListVersion = o.IdentityDomain.DomainName,
                                                     Value = o.Value
                                                 }).ToArray()
                                             },

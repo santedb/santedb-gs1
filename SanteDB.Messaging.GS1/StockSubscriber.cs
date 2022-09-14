@@ -169,7 +169,7 @@ namespace SanteDB.Messaging.GS1
                         {
                             additionalPartyIdentification = originalOrder.Identifiers.Count > 0 ? new AdditionalPartyIdentificationType[]
                             {
-                                new AdditionalPartyIdentificationType() { Value = originalOrder.Identifiers.FirstOrDefault()?.Authority.Oid, additionalPartyIdentificationTypeCode = "urn:oid:" },
+                                new AdditionalPartyIdentificationType() { Value = originalOrder.Identifiers.FirstOrDefault()?.IdentityDomain.Oid, additionalPartyIdentificationTypeCode = "urn:oid:" },
                             } : null,
                         }
                     },

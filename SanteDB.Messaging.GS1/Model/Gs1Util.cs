@@ -76,7 +76,7 @@ namespace SanteDB.Messaging.GS1.Model
             var gln = oidService.Get("GLN");
             return new TransactionalPartyType()
             {
-                gln = place.Identifiers.FirstOrDefault(o => o.Authority.Oid == gln.Oid)?.Value,
+                gln = place.Identifiers.FirstOrDefault(o => o.IdentityDomain.Oid == gln.Oid)?.Value,
                 address = new AddressType()
                 {
                     state = place.Addresses.FirstOrDefault()?.Component.FirstOrDefault(o => o.ComponentTypeKey == AddressComponentKeys.State)?.Value,
@@ -87,7 +87,7 @@ namespace SanteDB.Messaging.GS1.Model
                 },
                 additionalPartyIdentification = place.Identifiers.Select(o => new AdditionalPartyIdentificationType()
                 {
-                    additionalPartyIdentificationTypeCode = o.Authority.DomainName,
+                    additionalPartyIdentificationTypeCode = o.IdentityDomain.DomainName,
                     Value = o.Value
                 }).ToArray(),
                 organisationDetails = new OrganisationType()
@@ -110,7 +110,7 @@ namespace SanteDB.Messaging.GS1.Model
             // First, we will attempt to look up by GLN
             if (!String.IsNullOrEmpty(gs1Party.gln))
             {
-                retVal = this.m_placeRepository.Find(p => p.Identifiers.Any(o => o.Value == gs1Party.gln && o.Authority.DomainName == "GLN")).FirstOrDefault();
+                retVal = this.m_placeRepository.Find(p => p.Identifiers.Any(o => o.Value == gs1Party.gln && o.IdentityDomain.DomainName == "GLN")).FirstOrDefault();
                 if (retVal == null)
                     throw new KeyNotFoundException($"Facility with GLN {gs1Party.gln} not found");
             }
@@ -118,7 +118,7 @@ namespace SanteDB.Messaging.GS1.Model
             // let's look it up by alternate identifier then
             foreach (var id in gs1Party.additionalPartyIdentification)
             {
-                retVal = this.m_placeRepository.Find(p => p.Identifiers.Any(i => i.Value == id.Value && i.Authority.DomainName == id.additionalPartyIdentificationTypeCode)).FirstOrDefault();
+                retVal = this.m_placeRepository.Find(p => p.Identifiers.Any(i => i.Value == id.Value && i.IdentityDomain.DomainName == id.additionalPartyIdentificationTypeCode)).FirstOrDefault();
                 if (retVal != null) break;
             }
 
@@ -153,7 +153,7 @@ namespace SanteDB.Messaging.GS1.Model
                     throw new InvalidOperationException("Could not find assigning authority linked with document reference owner. Please specify a default in the configuration");
 
                 int tr = 0;
-                retVal = this.m_actRepository.Find(o => o.ClassConceptKey == ActClassKeys.Supply && o.MoodConceptKey == moodConceptKey && o.Identifiers.Any(i => i.Value == documentReference.entityIdentification && i.AuthorityKey == issuingAuthority.Key)).FirstOrDefault();
+                retVal = this.m_actRepository.Find(o => o.ClassConceptKey == ActClassKeys.Supply && o.MoodConceptKey == moodConceptKey && o.Identifiers.Any(i => i.Value == documentReference.entityIdentification && i.IdentityDomainKey == issuingAuthority.Key)).FirstOrDefault();
             }
             return retVal;
         }
@@ -273,7 +273,7 @@ namespace SanteDB.Messaging.GS1.Model
 
                 return new TransactionalTradeItemType()
                 {
-                    additionalTradeItemIdentification = material.LoadCollection<EntityIdentifier>("Identifiers").Where(o => o.Authority.DomainName != "GTIN").Select(o => new AdditionalTradeItemIdentificationType()
+                    additionalTradeItemIdentification = material.LoadCollection<EntityIdentifier>("Identifiers").Where(o => o.IdentityDomain.DomainName != "GTIN").Select(o => new AdditionalTradeItemIdentificationType()
                     {
                         Value = o.Value,
                         additionalTradeItemIdentificationTypeCode = o.LoadProperty<IdentityDomain>("Authority").DomainName
@@ -286,7 +286,7 @@ namespace SanteDB.Messaging.GS1.Model
                             codeListVersion = o.LoadProperty<IdentityDomain>("Authority").DomainName
                         }).ToArray()
                     },
-                    gtin = material.Identifiers.FirstOrDefault(o => o.Authority.DomainName == "GTIN").Value,
+                    gtin = material.Identifiers.FirstOrDefault(o => o.IdentityDomain.DomainName == "GTIN").Value,
                     itemTypeCode = typeItemCode,
                     tradeItemDescription = material.Names.Select(o => new Description200Type() { Value = o.Component.FirstOrDefault()?.Value }).FirstOrDefault(),
                     transactionalItemData = new TransactionalItemDataType[]
@@ -334,7 +334,7 @@ namespace SanteDB.Messaging.GS1.Model
             // Lookup material by lot number / gtin
             int tr = 0;
             var lotNumberString = tradeItem.transactionalItemData[0].lotNumber;
-            ManufacturedMaterial retVal = this.m_manufMaterialRepository.Find(m => m.Identifiers.Any(o => o.Value == tradeItem.gtin && o.Authority.DomainName == "GTIN") && m.LotNumber == lotNumberString).FirstOrDefault();
+            ManufacturedMaterial retVal = this.m_manufMaterialRepository.Find(m => m.Identifiers.Any(o => o.Value == tradeItem.gtin && o.IdentityDomain.DomainName == "GTIN") && m.LotNumber == lotNumberString).FirstOrDefault();
             if (retVal == null && createIfNotFound)
             {
                 var additionalData = tradeItem.transactionalItemData[0];
@@ -390,7 +390,7 @@ namespace SanteDB.Messaging.GS1.Model
                 if (tradeItem.tradeItemClassification != null)
                     foreach (var id in tradeItem.tradeItemClassification.additionalTradeItemClassificationCode)
                     {
-                        materialReference = this.m_materialRepository.Find(o => o.Identifiers.Any(i => i.Value == id.Value && i.Authority.DomainName == id.codeListVersion) && o.ClassConceptKey == EntityClassKeys.Material && !StatusKeys.InactiveStates.Contains(o.StatusConceptKey.Value)).SingleOrDefault();
+                        materialReference = this.m_materialRepository.Find(o => o.Identifiers.Any(i => i.Value == id.Value && i.IdentityDomain.DomainName == id.codeListVersion) && o.ClassConceptKey == EntityClassKeys.Material && !StatusKeys.InactiveStates.Contains(o.StatusConceptKey.Value)).SingleOrDefault();
                         if (materialReference != null) break;
                     }
                 if (materialReference == null)
@@ -427,7 +427,7 @@ namespace SanteDB.Messaging.GS1.Model
                 {
                     var oid = oidService.Get(id.additionalTradeItemIdentificationTypeCode);
                     if (oid == null) continue;
-                    if (!retVal.Identifiers.Any(o => o.AuthorityKey == oid.Key))
+                    if (!retVal.Identifiers.Any(o => o.IdentityDomainKey == oid.Key))
                     {
                         retVal.Identifiers.Add(new EntityIdentifier(oid, id.Value));
                         shouldSave = true;

@@ -1,5 +1,5 @@
 ﻿<?xml version="1.0" encoding="utf-8" ?>
-<dataset xmlns="http://santedb.org/data" id="GS1 Extensions">
+<dataset xmlns="http://santedb.org/data" id="GS1 Stock Status Reference Terms">
   <update insertIfNotExists="true">
     <CodeSystem xmlns="http://santedb.org/model">
       <id>a50485e9-bad4-4525-8e8b-13fcedb8f583</id>

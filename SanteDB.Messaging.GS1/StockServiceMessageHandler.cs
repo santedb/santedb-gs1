@@ -44,6 +44,12 @@ namespace SanteDB.Messaging.GS1
     [ApiServiceProvider("GS1 BMS XML3.3 API Endpoint", typeof(StockServiceBehavior), configurationType: typeof(Gs1ConfigurationSection))]
 	public class StockServiceMessageHandler : IDaemonService, IApiEndpointProvider
 	{
+
+		/// <summary>
+		/// Configuration name in the rest section
+		/// </summary>
+		public const string ConfigurationName = "GS1BMS";
+
         /// <summary>
         /// Gets the service name
         /// </summary>
@@ -132,7 +138,7 @@ namespace SanteDB.Messaging.GS1
 			{
 				this.Starting?.Invoke(this, EventArgs.Empty);
 
-				this.webHost = ApplicationServiceContext.Current.GetService<IRestServiceFactory>().CreateService(typeof(StockServiceBehavior));
+				this.webHost = ApplicationServiceContext.Current.GetService<IRestServiceFactory>().CreateService(ConfigurationName);
                 this.webHost.AddServiceBehavior(new ErrorServiceBehavior());
 				foreach (ServiceEndpoint endpoint in this.webHost.Endpoints)
 				{

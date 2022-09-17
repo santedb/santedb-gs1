@@ -28,7 +28,6 @@ using SanteDB.Messaging.GS1.Model;
 using System;
 using System.ComponentModel;
 using System.Diagnostics;
-using SanteDB.Server.Core.Services;
 using SanteDB.Core.Queue;
 using SanteDB.Core.PubSub;
 

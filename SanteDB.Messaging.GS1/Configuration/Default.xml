@@ -25,6 +25,7 @@
   <endpoint address="http://0.0.0.0:8080/gs1" contract="SanteDB.Messaging.GS1.Rest.IStockService, SanteDB.Messaging.GS1">
     <behaviors>
       <add type="SanteDB.Rest.Common.Behavior.MessageLoggingEndpointBehavior, SanteDB.Rest.Common"/>
+      <add type="SanteDB.Rest.Common.Behavior.AcceptLanguageEndpointBehavior, SanteDB.Rest.Common"/>
       <add type="SanteDB.Rest.Common.Behavior.MessageCompressionEndpointBehavior, SanteDB.Rest.Common"/>
       <add type="SanteDB.Rest.Common.Behavior.CorsEndpointBehavior, SanteDB.Rest.Common"/>
     </behaviors>

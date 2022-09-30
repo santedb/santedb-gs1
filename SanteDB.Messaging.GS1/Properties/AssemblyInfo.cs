@@ -19,7 +19,6 @@
 using SanteDB.Core.Attributes;
 using SanteDB.Core.Configuration;
 using SanteDB.Messaging.GS1;
-using SanteDB.Messaging.GS1.Transport.AS2;
 using System.Reflection;
 using System.Runtime.InteropServices;
 

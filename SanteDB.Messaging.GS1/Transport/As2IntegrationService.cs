@@ -16,20 +16,15 @@
  * User: fyfej (<Unknown>)
  * Date: 2022-5-30
  */
-using SanteDB.Core.Services;
 using SanteDB.Core;
 using SanteDB.Core.Diagnostics;
 using SanteDB.Core.Http;
-
+using SanteDB.Core.PubSub;
+using SanteDB.Core.Queue;
 using SanteDB.Core.Services;
-
 using SanteDB.Messaging.GS1.Configuration;
 using SanteDB.Messaging.GS1.Model;
 using System;
-using System.ComponentModel;
-using System.Diagnostics;
-using SanteDB.Core.Queue;
-using SanteDB.Core.PubSub;
 
 namespace SanteDB.Messaging.GS1.Transport.AS2
 {
@@ -112,7 +107,11 @@ namespace SanteDB.Messaging.GS1.Transport.AS2
                     try
                     {
                         var dq = ApplicationServiceContext.Current.GetService<IDispatcherQueueManagerService>().Dequeue(this.m_configuration.Gs1QueueName);
-                        if (dq == null) break;
+                        if (dq == null)
+                        {
+                            break;
+                        }
+
                         body = dq.Body;
                         this.SendQueueMessage(dq);
                     }
@@ -150,11 +149,17 @@ namespace SanteDB.Messaging.GS1.Transport.AS2
                 var restClient = this.m_restFactory.CreateRestClient(this.m_configuration.Gs1Broker.ClientConfiguration) ?? this.m_restFactory.GetRestClientFor(Core.Interop.ServiceEndpointType.Gs1StockInterface);
                 var client = new Gs1ServiceClient(restClient);
                 if (queueMessage.Body is OrderMessageType omt)
+                {
                     client.IssueOrder(omt);
+                }
                 else if (queueMessage.Body is DespatchAdviceMessageType damt)
+                {
                     client.IssueDespatchAdvice(damt);
+                }
                 else if (queueMessage.Body is ReceivingAdviceMessageType ramt)
+                {
                     client.IssueReceivingAdvice(ramt);
+                }
             }
             catch (Exception e)
             {

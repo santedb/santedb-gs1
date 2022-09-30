@@ -30,17 +30,17 @@ namespace SanteDB.Messaging.GS1.Rest
     [ServiceContract(Name = "GS1BMS")]
     [ServiceProduces("application/xml")]
     [ServiceConsumes("application/xml")]
-	public interface IStockService
-	{
-		/// <summary>
-		/// Request for issuance of an inventory report
-		/// </summary>
+    public interface IStockService
+    {
+        /// <summary>
+        /// Request for issuance of an inventory report
+        /// </summary>
         /// <remarks>
         /// This method requests the SanteDB server to compose an inventory report according to the parameters supplied.
         /// </remarks>
         /// <param name="parameters">The logistics inventory filters to use</param>
-		[RestInvoke(Method = "POST", UriTemplate = "/inventoryReport")]
-		LogisticsInventoryReportMessageType IssueInventoryReportRequest(LogisticsInventoryReportRequestMessageType parameters);
+        [RestInvoke(Method = "POST", UriTemplate = "/inventoryReport")]
+        LogisticsInventoryReportMessageType IssueInventoryReportRequest(LogisticsInventoryReportRequestMessageType parameters);
 
         /// <summary>
         /// Represents a request to issue despatch advice
@@ -50,20 +50,6 @@ namespace SanteDB.Messaging.GS1.Rest
         /// </remarks>
         [RestInvoke(Method = "POST", UriTemplate = "/despatchAdvice")]
         void IssueDespatchAdvice(DespatchAdviceMessageType advice);
-
-        /// <summary>
-        /// Issue receiving advice to the SanteDB IMS system
-        /// </summary>
-        /// TODO: Finish this
-        //[RestInvoke(Method = "POST", RequestFormat = WebMessageFormat.Xml, ResponseFormat = WebMessageFormat.Xml, UriTemplate = "/receivingAdvice")]
-        //void IssueReceivingAdvice(ReceivingAdviceMessageType advice);
-
-        /// <summary>
-        /// Represents a request to issue an order
-        /// </summary>
-        /// TODO: Finish this
-        //[RestInvoke(Method = "POST", RequestFormat = WebMessageFormat.Xml, ResponseFormat = WebMessageFormat.Xml, UriTemplate = "/order")]
-        //void IssueOrder(OrderMessageType order);
 
         /// <summary>
         /// Issues order response

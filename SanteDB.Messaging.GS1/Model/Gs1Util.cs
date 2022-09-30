@@ -70,7 +70,10 @@ namespace SanteDB.Messaging.GS1.Model
         /// </summary>
         public TransactionalPartyType CreateLocation(Place place)
         {
-            if (place == null) return null;
+            if (place == null)
+            {
+                return null;
+            }
 
             var oidService = ApplicationServiceContext.Current.GetService<IIdentityDomainRepositoryService>();
             var gln = oidService.Get("GLN");
@@ -102,24 +105,31 @@ namespace SanteDB.Messaging.GS1.Model
         /// </summary>
         public Place GetLocation(TransactionalPartyType gs1Party)
         {
-            if (gs1Party == null) return null;
+            if (gs1Party == null)
+            {
+                return null;
+            }
 
             Place retVal = null;
-            int tr = 0;
 
             // First, we will attempt to look up by GLN
             if (!String.IsNullOrEmpty(gs1Party.gln))
             {
                 retVal = this.m_placeRepository.Find(p => p.Identifiers.Any(o => o.Value == gs1Party.gln && o.IdentityDomain.DomainName == "GLN")).FirstOrDefault();
                 if (retVal == null)
+                {
                     throw new KeyNotFoundException($"Facility with GLN {gs1Party.gln} not found");
+                }
             }
 
             // let's look it up by alternate identifier then
             foreach (var id in gs1Party.additionalPartyIdentification)
             {
                 retVal = this.m_placeRepository.Find(p => p.Identifiers.Any(i => i.Value == id.Value && i.IdentityDomain.DomainName == id.additionalPartyIdentificationTypeCode)).FirstOrDefault();
-                if (retVal != null) break;
+                if (retVal != null)
+                {
+                    break;
+                }
             }
 
             return retVal;
@@ -131,28 +141,42 @@ namespace SanteDB.Messaging.GS1.Model
         public Act GetOrder(Ecom_DocumentReferenceType documentReference, Guid moodConceptKey)
         {
             if (documentReference == null)
+            {
                 throw new ArgumentNullException("documentReference", "Document reference must be supplied for correlation lookup");
+            }
             else if (String.IsNullOrEmpty(documentReference.entityIdentification))
+            {
                 throw new ArgumentException("Document reference must carry entityIdentification", "documentReference");
+            }
 
             Guid orderId = Guid.Empty;
             Act retVal = null;
 
             if (Guid.TryParse(documentReference.entityIdentification, out orderId))
+            {
                 retVal = this.m_actRepository.Get(orderId, Guid.Empty);
+            }
+
             if (retVal == null)
             {
                 var oidService = ApplicationServiceContext.Current.GetService<IIdentityDomainRepositoryService>();
                 var gln = oidService.Get("GLN");
                 IdentityDomain issuingAuthority = null;
                 if (documentReference.contentOwner != null)
+                {
                     issuingAuthority = oidService.Find(o => o.Oid == $"{gln.Oid}.{documentReference.contentOwner.gln}").FirstOrDefault();
-                if (issuingAuthority == null)
-                    issuingAuthority = oidService.Get(this.m_configuration.DefaultContentOwnerAssigningAuthority);
-                if (issuingAuthority == null)
-                    throw new InvalidOperationException("Could not find assigning authority linked with document reference owner. Please specify a default in the configuration");
+                }
 
-                int tr = 0;
+                if (issuingAuthority == null)
+                {
+                    issuingAuthority = oidService.Get(this.m_configuration.DefaultContentOwnerAssigningAuthority);
+                }
+
+                if (issuingAuthority == null)
+                {
+                    throw new InvalidOperationException("Could not find assigning authority linked with document reference owner. Please specify a default in the configuration");
+                }
+
                 retVal = this.m_actRepository.Find(o => o.ClassConceptKey == ActClassKeys.Supply && o.MoodConceptKey == moodConceptKey && o.Identifiers.Any(i => i.Value == documentReference.entityIdentification && i.IdentityDomainKey == issuingAuthority.Key)).FirstOrDefault();
             }
             return retVal;
@@ -164,9 +188,13 @@ namespace SanteDB.Messaging.GS1.Model
         public ReceivingAdviceLogisticUnitType CreateReceiveLineItem(ActParticipation orderReceivePtcpt, ActParticipation orderSentPtcpt)
         {
             if (orderSentPtcpt == null)
+            {
                 throw new ArgumentNullException(nameof(orderSentPtcpt), "Missing sending order participation");
+            }
             else if (orderReceivePtcpt == null)
+            {
                 throw new ArgumentNullException(nameof(orderReceivePtcpt), "Missing receiving order participation");
+            }
 
             // Quantity code
             var quantityCode = ApplicationServiceContext.Current.GetService<IConceptRepositoryService>().GetConceptReferenceTerm(orderReceivePtcpt.LoadProperty<Material>("PlayerEntity").QuantityConceptKey.Value, "UCUM");
@@ -176,12 +204,16 @@ namespace SanteDB.Messaging.GS1.Model
             {
                 var mat = this.m_materialRepository.Find(o => o.Relationships.Where(g => g.RelationshipType.Mnemonic == "Instance").Any(p => p.TargetEntityKey == orderReceivePtcpt.PlayerEntityKey)).FirstOrDefault();
                 if (mat == null)
+                {
                     throw new InvalidOperationException($"Missing quantity code for {orderReceivePtcpt.LoadProperty<Material>("PlayerEntity").Key}");
+                }
                 else
                 {
                     quantityCode = ApplicationServiceContext.Current.GetService<IConceptRepositoryService>().GetConceptReferenceTerm(mat.QuantityConceptKey.Value, "UCUM");
                     if (quantityCode == null)
+                    {
                         throw new InvalidOperationException($"Missing quantity code for {orderReceivePtcpt.LoadProperty<Material>("PlayerEntity").Key}");
+                    }
                 }
             }
             // Receiving logistic unit type
@@ -254,11 +286,16 @@ namespace SanteDB.Messaging.GS1.Model
         public TransactionalTradeItemType CreateTradeItem(Material material)
         {
             if (material == null)
+            {
                 throw new ArgumentNullException(nameof(material), "Missing material instance");
+            }
 
             ReferenceTerm cvx = null;
             if (material.TypeConceptKey.HasValue)
+            {
                 cvx = ApplicationServiceContext.Current.GetService<IConceptRepositoryService>().GetConceptReferenceTerm(material.TypeConceptKey.Value, "CVX");
+            }
+
             var typeItemCode = new ItemTypeCodeType()
             {
                 Value = cvx?.Mnemonic ?? material.TypeConcept?.Mnemonic ?? material.Key.Value.ToString(),
@@ -324,22 +361,27 @@ namespace SanteDB.Messaging.GS1.Model
         public ManufacturedMaterial GetManufacturedMaterial(TransactionalTradeItemType tradeItem, bool createIfNotFound = false)
         {
             if (tradeItem == null)
+            {
                 throw new ArgumentNullException("tradeItem", "Trade item must have a value");
+            }
             else if (String.IsNullOrEmpty(tradeItem.gtin))
+            {
                 throw new ArgumentException("Trade item is missing GTIN", "tradeItem");
+            }
 
             var oidService = ApplicationServiceContext.Current.GetService<IIdentityDomainRepositoryService>();
             var gtin = oidService.Get("GTIN");
 
             // Lookup material by lot number / gtin
-            int tr = 0;
             var lotNumberString = tradeItem.transactionalItemData[0].lotNumber;
             ManufacturedMaterial retVal = this.m_manufMaterialRepository.Find(m => m.Identifiers.Any(o => o.Value == tradeItem.gtin && o.IdentityDomain.DomainName == "GTIN") && m.LotNumber == lotNumberString).FirstOrDefault();
             if (retVal == null && createIfNotFound)
             {
                 var additionalData = tradeItem.transactionalItemData[0];
                 if (!additionalData.itemExpirationDateSpecified)
+                {
                     throw new InvalidOperationException("Cannot auto-create material, expiration date is missing");
+                }
 
                 // Material
                 retVal = new ManufacturedMaterial()
@@ -362,24 +404,36 @@ namespace SanteDB.Messaging.GS1.Model
 
                 // Store additional identifiers
                 if (tradeItem.additionalTradeItemIdentification != null)
+                {
                     foreach (var id in tradeItem.additionalTradeItemIdentification)
                     {
                         var oid = oidService.Get(id.additionalTradeItemIdentificationTypeCode);
-                        if (oid == null) continue;
+                        if (oid == null)
+                        {
+                            continue;
+                        }
+
                         retVal.Identifiers.Add(new EntityIdentifier(oid, id.Value));
                     }
+                }
 
                 if (String.IsNullOrEmpty(tradeItem.itemTypeCode?.Value))
+                {
                     throw new InvalidOperationException("Cannot auto-create material, type code must be specified");
+                }
                 else // lookup type code
                 {
                     var concept = ApplicationServiceContext.Current.GetService<IConceptRepositoryService>().GetConceptByReferenceTerm(tradeItem.itemTypeCode.Value, tradeItem.itemTypeCode.codeListVersion);
                     if (concept == null && tradeItem.itemTypeCode.codeListVersion == "SanteDB-MaterialType")
+                    {
                         concept = ApplicationServiceContext.Current.GetService<IConceptRepositoryService>().GetConcept(tradeItem.itemTypeCode.Value);
+                    }
 
                     // Type code not found
                     if (concept == null)
+                    {
                         throw new InvalidOperationException($"Material type {tradeItem.itemTypeCode.Value} is not a valid concept");
+                    }
 
                     // Get the material and set the type
                     retVal.TypeConceptKey = concept.Key;
@@ -388,15 +442,26 @@ namespace SanteDB.Messaging.GS1.Model
                 // Find the type of material
                 Material materialReference = null;
                 if (tradeItem.tradeItemClassification != null)
+                {
                     foreach (var id in tradeItem.tradeItemClassification.additionalTradeItemClassificationCode)
                     {
                         materialReference = this.m_materialRepository.Find(o => o.Identifiers.Any(i => i.Value == id.Value && i.IdentityDomain.DomainName == id.codeListVersion) && o.ClassConceptKey == EntityClassKeys.Material && !StatusKeys.InactiveStates.Contains(o.StatusConceptKey.Value)).SingleOrDefault();
-                        if (materialReference != null) break;
+                        if (materialReference != null)
+                        {
+                            break;
+                        }
                     }
+                }
+
                 if (materialReference == null)
+                {
                     materialReference = this.m_materialRepository.Find(o => o.TypeConceptKey == retVal.TypeConceptKey && o.ClassConceptKey == EntityClassKeys.Material && !StatusKeys.InactiveStates.Contains(o.StatusConceptKey.Value)).SingleOrDefault();
+                }
+
                 if (materialReference == null)
+                {
                     throw new InvalidOperationException("Cannot find the base Material from trade item type code");
+                }
 
                 // Material relationship
                 EntityRelationship materialRelationship = new EntityRelationship()
@@ -426,7 +491,11 @@ namespace SanteDB.Messaging.GS1.Model
                 foreach (var id in tradeItem.additionalTradeItemIdentification)
                 {
                     var oid = oidService.Get(id.additionalTradeItemIdentificationTypeCode);
-                    if (oid == null) continue;
+                    if (oid == null)
+                    {
+                        continue;
+                    }
+
                     if (!retVal.Identifiers.Any(o => o.IdentityDomainKey == oid.Key))
                     {
                         retVal.Identifiers.Add(new EntityIdentifier(oid, id.Value));
@@ -435,7 +504,9 @@ namespace SanteDB.Messaging.GS1.Model
                 }
 
                 if (shouldSave)
+                {
                     this.m_materialRepository.Save(retVal);
+                }
             }
 
             return retVal;

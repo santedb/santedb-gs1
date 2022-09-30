@@ -17,13 +17,8 @@
  * Date: 2022-5-30
  */
 using Newtonsoft.Json;
-using SanteDB.Core.Configuration;
 using SanteDB.Core.Configuration.Http;
-using SanteDB.Core.Http;
-using SanteDB.Core.Security.Configuration;
-using System;
 using System.ComponentModel;
-using System.Configuration;
 using System.Xml.Serialization;
 
 namespace SanteDB.Messaging.GS1.Configuration

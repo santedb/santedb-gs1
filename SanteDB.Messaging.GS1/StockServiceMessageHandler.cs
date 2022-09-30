@@ -16,39 +16,38 @@
  * User: fyfej (<Unknown>)
  * Date: 2022-5-30
  */
-using SanteDB.Core.Services;
 using RestSrvr;
-using SanteDB.Core.Interop;
-using SanteDB.Messaging.GS1.Rest;
-using System;
-using System.ComponentModel;
-using System.Diagnostics;
-using System.Linq;
-using System.Reflection;
 using SanteDB.Core;
 using SanteDB.Core.Diagnostics;
-using System.Diagnostics.Tracing;
-using SanteDB.Rest.Common.Behavior;
+using SanteDB.Core.Interop;
+using SanteDB.Core.Services;
 using SanteDB.Messaging.GS1.Configuration;
+using SanteDB.Messaging.GS1.Rest;
+using SanteDB.Rest.Common.Behavior;
+using System;
+using System.ComponentModel;
+using System.Diagnostics.Tracing;
+using System.Linq;
+using System.Reflection;
 
 namespace SanteDB.Messaging.GS1
 {
-	/// <summary>
-	/// GS1 Business Messaging Standard (BMS) HTTP / REST implementation of <see cref="IApiEndpointProvider"/>
-	/// </summary>
-	/// <remarks>
-	/// <para>This service is responsible for maintaining the lifecycle of the <see cref="IStockService"/> REST contract
-	/// which implements SanteDB's <see href="https://help.santesuite.org/developers/service-apis/gs1-bms-xml">GS1 BMS API</see>.</para>
-	/// </remarks>
-	[Description("Allows SanteDB iCDR to send and receive GS1 BMS XML messages over REST based transport")]
+    /// <summary>
+    /// GS1 Business Messaging Standard (BMS) HTTP / REST implementation of <see cref="IApiEndpointProvider"/>
+    /// </summary>
+    /// <remarks>
+    /// <para>This service is responsible for maintaining the lifecycle of the <see cref="IStockService"/> REST contract
+    /// which implements SanteDB's <see href="https://help.santesuite.org/developers/service-apis/gs1-bms-xml">GS1 BMS API</see>.</para>
+    /// </remarks>
+    [Description("Allows SanteDB iCDR to send and receive GS1 BMS XML messages over REST based transport")]
     [ApiServiceProvider("GS1 BMS XML3.3 API Endpoint", typeof(StockServiceBehavior), configurationType: typeof(Gs1ConfigurationSection))]
-	public class StockServiceMessageHandler : IDaemonService, IApiEndpointProvider
-	{
+    public class StockServiceMessageHandler : IDaemonService, IApiEndpointProvider
+    {
 
-		/// <summary>
-		/// Configuration name in the rest section
-		/// </summary>
-		public const string ConfigurationName = "GS1BMS";
+        /// <summary>
+        /// Configuration name in the rest section
+        /// </summary>
+        public const string ConfigurationName = "GS1BMS";
 
         /// <summary>
         /// Gets the service name
@@ -58,33 +57,33 @@ namespace SanteDB.Messaging.GS1
         // HDSI Trace host
         private readonly Tracer traceSource = new Tracer(Gs1Constants.TraceSourceName);
 
-		// web host
-		private RestService webHost;
+        // web host
+        private RestService webHost;
 
-		/// <summary>
-		/// Fired when the object is starting up
-		/// </summary>
-		public event EventHandler Started;
+        /// <summary>
+        /// Fired when the object is starting up
+        /// </summary>
+        public event EventHandler Started;
 
-		/// <summary>
-		/// Fired when the object is starting
-		/// </summary>
-		public event EventHandler Starting;
+        /// <summary>
+        /// Fired when the object is starting
+        /// </summary>
+        public event EventHandler Starting;
 
-		/// <summary>
-		/// Fired when the service has stopped
-		/// </summary>
-		public event EventHandler Stopped;
+        /// <summary>
+        /// Fired when the service has stopped
+        /// </summary>
+        public event EventHandler Stopped;
 
-		/// <summary>
-		/// Fired when the service is stopping
-		/// </summary>
-		public event EventHandler Stopping;
+        /// <summary>
+        /// Fired when the service is stopping
+        /// </summary>
+        public event EventHandler Stopping;
 
-		/// <summary>
-		/// True if running
-		/// </summary>
-		public bool IsRunning => this.webHost?.IsRunning == true;
+        /// <summary>
+        /// True if running
+        /// </summary>
+        public bool IsRunning => this.webHost?.IsRunning == true;
 
         /// <summary>
         /// Gets the contract type
@@ -129,51 +128,53 @@ namespace SanteDB.Messaging.GS1
         /// Start the service
         /// </summary>
         public bool Start()
-		{
+        {
             // Don't startup unless in SanteDB
             if (Assembly.GetEntryAssembly().GetName().Name != "SanteDB")
+            {
                 return true;
+            }
 
             try
-			{
-				this.Starting?.Invoke(this, EventArgs.Empty);
+            {
+                this.Starting?.Invoke(this, EventArgs.Empty);
 
-				this.webHost = ApplicationServiceContext.Current.GetService<IRestServiceFactory>().CreateService(ConfigurationName);
+                this.webHost = ApplicationServiceContext.Current.GetService<IRestServiceFactory>().CreateService(ConfigurationName);
                 this.webHost.AddServiceBehavior(new ErrorServiceBehavior());
-				foreach (ServiceEndpoint endpoint in this.webHost.Endpoints)
-				{
-					this.traceSource.TraceInfo("Starting GS1 on {0}...", endpoint.Description.ListenUri);
+                foreach (ServiceEndpoint endpoint in this.webHost.Endpoints)
+                {
+                    this.traceSource.TraceInfo("Starting GS1 on {0}...", endpoint.Description.ListenUri);
                     endpoint.AddEndpointBehavior(new MessageLoggingEndpointBehavior());
                 }
-				// Start the webhost
-				this.webHost.Start();
+                // Start the webhost
+                this.webHost.Start();
 
-				this.Started?.Invoke(this, EventArgs.Empty);
-				return true;
-			}
-			catch (Exception e)
-			{
-				this.traceSource.TraceEvent(EventLevel.Error,  e.ToString());
-				return false;
-			}
-		}
+                this.Started?.Invoke(this, EventArgs.Empty);
+                return true;
+            }
+            catch (Exception e)
+            {
+                this.traceSource.TraceEvent(EventLevel.Error, e.ToString());
+                return false;
+            }
+        }
 
-		/// <summary>
-		/// Stop the HDSI service
-		/// </summary>
-		public bool Stop()
-		{
-			this.Stopping?.Invoke(this, EventArgs.Empty);
+        /// <summary>
+        /// Stop the HDSI service
+        /// </summary>
+        public bool Stop()
+        {
+            this.Stopping?.Invoke(this, EventArgs.Empty);
 
-			if (this.webHost != null)
-			{
-				this.webHost.Stop();
-				this.webHost = null;
-			}
+            if (this.webHost != null)
+            {
+                this.webHost.Stop();
+                this.webHost = null;
+            }
 
-			this.Stopped?.Invoke(this, EventArgs.Empty);
+            this.Stopped?.Invoke(this, EventArgs.Empty);
 
-			return true;
-		}
-	}
+            return true;
+        }
+    }
 }

@@ -16,29 +16,23 @@
  * User: fyfej (<Unknown>)
  * Date: 2022-5-30
  */
-using SanteDB.Core.Services;
 using SanteDB.Core;
-using SanteDB.Core.Model;
+using SanteDB.Core.Diagnostics;
 using SanteDB.Core.Model.Acts;
 using SanteDB.Core.Model.Collection;
 using SanteDB.Core.Model.Constants;
 using SanteDB.Core.Model.DataTypes;
 using SanteDB.Core.Model.Entities;
-
+using SanteDB.Core.PubSub;
+using SanteDB.Core.PubSub.Broker;
+using SanteDB.Core.Queue;
 using SanteDB.Core.Services;
-
 using SanteDB.Messaging.GS1.Configuration;
 using SanteDB.Messaging.GS1.Model;
 using System;
 using System.Collections.Generic;
-using System.ComponentModel;
-using System.Diagnostics;
 using System.Globalization;
 using System.Linq;
-using SanteDB.Core.Diagnostics;
-using SanteDB.Core.Queue;
-using SanteDB.Core.PubSub.Broker;
-using SanteDB.Core.PubSub;
 
 namespace SanteDB.Messaging.GS1
 {
@@ -127,10 +121,14 @@ namespace SanteDB.Messaging.GS1
             foreach (var act in acts.Where(a => a != null))
             {
                 if (act.MoodConceptKey == ActMoodKeys.Request) // We have an order!
+                {
                     this.IssueOrder(act);
+                }
                 else if (act.MoodConceptKey == ActMoodKeys.Eventoccurrence && act.StatusConceptKey == StatusKeys.Completed &&
                         act?.Tags.FirstOrDefault(o => o.TagKey == "orderStatus")?.Value == "completed")
+                {
                     this.IssueReceiveAdvice(act);
+                }
             }
         }
 
@@ -181,7 +179,9 @@ namespace SanteDB.Messaging.GS1
             };
 
             for (int i = 0; i < receiveMessage.receivingAdvice[0].receivingAdviceLogisticUnit.Length; i++)
+            {
                 receiveMessage.receivingAdvice[0].receivingAdviceLogisticUnit[i].receivingAdviceLineItem[0].lineItemNumber = (i + 1).ToString();
+            }
 
             // Queue The order on the file system
             this.QueueMessage(receiveMessage);
@@ -231,7 +231,9 @@ namespace SanteDB.Messaging.GS1
             };
 
             for (int i = 0; i < order.orderLineItem.Length; i++)
+            {
                 order.orderLineItem[i].lineItemNumber = (i + 1).ToString();
+            }
 
             orderMessage.order = new OrderType[] { order };
 

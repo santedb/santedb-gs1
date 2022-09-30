@@ -19,7 +19,6 @@
 using SanteDB.Core.Configuration;
 using System;
 using System.ComponentModel;
-using System.Configuration;
 using System.Xml.Serialization;
 
 namespace SanteDB.Messaging.GS1.Configuration
@@ -28,7 +27,7 @@ namespace SanteDB.Messaging.GS1.Configuration
     /// GS1 configuration 
     /// </summary>
     [XmlType(nameof(Gs1ConfigurationSection), Namespace = "http://santedb.org/configuration")]
-    public class Gs1ConfigurationSection  : IConfigurationSection
+    public class Gs1ConfigurationSection : IConfigurationSection
     {
         /// <summary>
         /// Creates a new GS1 configuration
@@ -43,8 +42,9 @@ namespace SanteDB.Messaging.GS1.Configuration
         /// </summary>
         [XmlAttribute("autoCreateMaterials")]
         [DisplayName("Auto Create Materials"), Description("When a GS1 BMS message is received with a material unknown to SanteDB, automatically register the material type in the database")]
-        public bool AutoCreateMaterials {
-            get;set;
+        public bool AutoCreateMaterials
+        {
+            get; set;
         }
 
         /// <summary>
@@ -52,8 +52,9 @@ namespace SanteDB.Messaging.GS1.Configuration
         /// </summary>
         [XmlAttribute("defaultAuthority")]
         [DisplayName("Default Owner AA"), Description("The assinging authority to append to owner information when not provided in the GS1 message")]
-        public String DefaultContentOwnerAssigningAuthority {
-            get;set;
+        public String DefaultContentOwnerAssigningAuthority
+        {
+            get; set;
         }
 
         /// <summary>
@@ -61,8 +62,9 @@ namespace SanteDB.Messaging.GS1.Configuration
         /// </summary>
         [XmlAttribute("queueName"), ConfigurationRequired]
         [DisplayName("Queue Name"), Description("The name of the queue from the queue service which stores GS1 requests until they can be successfully sent")]
-        public String Gs1QueueName {
-            get;set;
+        public String Gs1QueueName
+        {
+            get; set;
         }
 
         /// <summary>
@@ -72,7 +74,7 @@ namespace SanteDB.Messaging.GS1.Configuration
         [TypeConverter(typeof(ExpandableObjectConverter)), DisplayName("GS1 Broker"), Description("Configuration for the broker to use for GS1 messages")]
         public As2ServiceElement Gs1Broker
         {
-            get;set;
+            get; set;
         }
 
         /// <summary>

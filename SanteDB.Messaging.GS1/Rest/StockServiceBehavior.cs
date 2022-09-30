@@ -20,7 +20,6 @@ using RestSrvr.Attributes;
 using SanteDB.Core;
 using SanteDB.Core.Diagnostics;
 using SanteDB.Core.Extensions;
-using SanteDB.Core.Model;
 using SanteDB.Core.Model.Acts;
 using SanteDB.Core.Model.Collection;
 using SanteDB.Core.Model.Constants;
@@ -149,9 +148,14 @@ namespace SanteDB.Messaging.GS1.Rest
                 var gln = oidService.Get("GLN");
                 IdentityDomain issuingAuthority = null;
                 if (adv.despatchAdviceIdentification.contentOwner != null)
+                {
                     issuingAuthority = oidService.Find(o => o.Oid == $"{gln.Oid}.{adv.despatchAdviceIdentification.contentOwner.gln}").FirstOrDefault();
+                }
+
                 if (issuingAuthority == null)
+                {
                     issuingAuthority = oidService.Get(this.m_configuration.DefaultContentOwnerAssigningAuthority);
+                }
 
                 if (issuingAuthority == null)
                 {
@@ -202,10 +206,12 @@ namespace SanteDB.Messaging.GS1.Rest
 
                 // Fullfillment
                 if (orderRequestAct != null)
+                {
                     fulfillAct.Relationships = new List<ActRelationship>()
                     {
                         new ActRelationship(ActRelationshipTypeKeys.Fulfills, orderRequestAct.Key)
                     };
+                }
 
                 // Now add participations for each material in the despatch
                 foreach (var dal in adv.despatchAdviceLogisticUnit)
@@ -231,6 +237,7 @@ namespace SanteDB.Messaging.GS1.Rest
 
             // insert transaction
             if (orderTransaction.Item.Count > 0)
+            {
                 try
                 {
                     ApplicationServiceContext.Current.GetService<IRepositoryService<Bundle>>().Insert(orderTransaction);
@@ -243,6 +250,7 @@ namespace SanteDB.Messaging.GS1.Rest
                         param = e.Message
                     }), e);
                 }
+            }
         }
 
         /// <summary>
@@ -287,7 +295,9 @@ namespace SanteDB.Messaging.GS1.Rest
                     {
                         Guid uuid = Guid.Empty;
                         if (Guid.TryParse(id, out uuid))
+                        {
                             place = this.m_placeRepository.Get(uuid, Guid.Empty);
+                        }
 
                         if (place == null)
                         {
@@ -300,13 +310,19 @@ namespace SanteDB.Messaging.GS1.Rest
                         }
                     }
                     if (filterPlaces == null)
+                    {
                         filterPlaces = new List<Place>() { place };
+                    }
                     else
+                    {
                         filterPlaces.Add(place);
+                    }
                 }
             }
             else
+            {
                 filterPlaces = this.m_placeRepository.Find(o => o.ClassConceptKey == EntityClassKeys.ServiceDeliveryLocation).ToList();
+            }
 
             // Get the GLN AA data
             var oidService = ApplicationServiceContext.Current.GetService<IIdentityDomainRepositoryService>();
@@ -341,7 +357,9 @@ namespace SanteDB.Messaging.GS1.Rest
                     {
                         var locationStockStatus = new LogisticsInventoryReportInventoryLocationType();
                         lock (locationStockStatuses)
+                        {
                             locationStockStatuses.Add(locationStockStatus);
+                        }
 
                         // TODO: Store the GLN configuration domain name
                         locationStockStatus.inventoryLocation = this.m_gs1Util.CreateLocation(place);
@@ -364,11 +382,15 @@ namespace SanteDB.Messaging.GS1.Rest
                                         return;
                                     }
                                     else
+                                    {
                                         rel.TargetEntity = matl;
+                                    }
                                 }
                                 var mmat = rel.TargetEntity as ManufacturedMaterial;
                                 if (!(mmat is ManufacturedMaterial))
+                                {
                                     return;
+                                }
 
                                 var mat = this.m_materialRepository.Find(o => o.Relationships.Where(r => r.RelationshipType.Mnemonic == "Instance").Any(r => r.TargetEntity.Key == mmat.Key)).FirstOrDefault();
                                 var instanceData = mat.LoadCollection<EntityRelationship>("Relationships").FirstOrDefault(o => o.RelationshipTypeKey == EntityRelationshipTypeKeys.Instance);
@@ -385,12 +407,16 @@ namespace SanteDB.Messaging.GS1.Rest
                                     balanceOH -= (decimal)consumed.Sum(o => o.Quantity ?? 0);
 
                                     if (balanceOH == 0 && this.m_stockService.GetConsumed(mmat.Key.Value, place.Key.Value, reportFrom, reportTo).Count() == 0)
+                                    {
                                         return;
+                                    }
                                 }
 
                                 ReferenceTerm cvx = null;
                                 if (mat.TypeConceptKey.HasValue)
+                                {
                                     cvx = ApplicationServiceContext.Current.GetService<IConceptRepositoryService>().GetConceptReferenceTerm(mat.TypeConceptKey.Value, "CVX");
+                                }
 
                                 var typeItemCode = new ItemTypeCodeType()
                                 {
@@ -400,6 +426,7 @@ namespace SanteDB.Messaging.GS1.Rest
 
                                 // First we need the GTIN for on-hand balance
                                 lock (tradeItemStatuses)
+                                {
                                     tradeItemStatuses.Add(new TradeItemInventoryStatusType()
                                     {
                                         gtin = mmat.Identifiers.FirstOrDefault(o => o.IdentityDomain.DomainName == "GTIN")?.Value,
@@ -439,15 +466,19 @@ namespace SanteDB.Messaging.GS1.Rest
                                 }
                                         }
                                     });
+                                }
 
                                 foreach (var adjgrp in adjustments.GroupBy(o => o.ReasonConceptKey))
                                 {
                                     var reasonConcept = ApplicationServiceContext.Current.GetService<IConceptRepositoryService>().GetConceptReferenceTerm(adjgrp.Key.Value, "GS1_STOCK_STATUS")?.Mnemonic;
                                     if (reasonConcept == null)
+                                    {
                                         reasonConcept = (ApplicationServiceContext.Current.GetService<IConceptRepositoryService>().Get(adjgrp.Key.Value, Guid.Empty) as Concept)?.Mnemonic;
+                                    }
 
                                     // Broken vials?
                                     lock (tradeItemStatuses)
+                                    {
                                         tradeItemStatuses.Add(new TradeItemInventoryStatusType()
                                         {
                                             gtin = mmat.Identifiers.FirstOrDefault(o => o.IdentityDomain.DomainName == "GTIN")?.Value,
@@ -493,6 +524,7 @@ namespace SanteDB.Messaging.GS1.Rest
                                         }
                                             }
                                         });
+                                    }
                                 }
                             }
                         });
@@ -558,7 +590,9 @@ namespace SanteDB.Messaging.GS1.Rest
                 var gln = oidService.Get("GLN");
                 var issuingAuthority = oidService.Find(o => o.Oid == $"{gln.Oid}.{resp.orderResponseIdentification.contentOwner.gln}").FirstOrDefault();
                 if (issuingAuthority == null)
+                {
                     issuingAuthority = oidService.Get(this.m_configuration.DefaultContentOwnerAssigningAuthority);
+                }
 
                 if (issuingAuthority == null)
                 {
@@ -577,9 +611,13 @@ namespace SanteDB.Messaging.GS1.Rest
 
                 // Accepted or not
                 if (resp.responseStatusCode?.Value == "ACCEPTED")
+                {
                     existingTag.Value = "accepted";
+                }
                 else if (resp.responseStatusCode?.Value == "REJECTED")
+                {
                     existingTag.Value = "rejected";
+                }
 
                 orderTransaction.Add(orderRequestAct);
             }

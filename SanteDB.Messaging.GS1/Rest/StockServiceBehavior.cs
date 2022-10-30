@@ -41,7 +41,7 @@ namespace SanteDB.Messaging.GS1.Rest
     /// GS1 BMS 3.3
     /// </summary>
     /// <remarks>The SanteDB server implementation of the GS1 BMS 3.3 interface over REST</remarks>
-    [ServiceBehavior(Name = "GS1BMS", InstanceMode = ServiceInstanceMode.PerCall)]
+    [ServiceBehavior(Name = StockServiceMessageHandler.ConfigurationName, InstanceMode = ServiceInstanceMode.PerCall)]
     public class StockServiceBehavior : IStockService, IServiceImplementation
     {
         // Configuration

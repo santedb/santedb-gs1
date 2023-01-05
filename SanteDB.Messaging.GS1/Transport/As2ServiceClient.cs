@@ -53,7 +53,7 @@ namespace SanteDB.Messaging.GS1.Transport.AS2
             String boundary = String.Format("------{0:N}", Guid.NewGuid());
             if (this.m_configuration.UseAS2MimeEncoding)
             {
-                this.Client.Post<MultipartAttachment, object>("orderRequest", String.Format("multipart/form-data; boundary={0}", boundary), this.CreateAttachment(orderType));
+                this.Client.Post<MultiPartFormData, object>("orderRequest", String.Format("multipart/form-data; boundary={0}", boundary), this.CreateAttachment(orderType));
             }
             else
             {
@@ -69,7 +69,7 @@ namespace SanteDB.Messaging.GS1.Transport.AS2
             String boundary = String.Format("------{0:N}", Guid.NewGuid());
             if (this.m_configuration.UseAS2MimeEncoding)
             {
-                this.Client.Post<MultipartAttachment, object>("receivingAdvice", String.Format("multipart/form-data; boundary={0}", boundary), this.CreateAttachment(advice));
+                this.Client.Post<MultiPartFormData, object>("receivingAdvice", String.Format("multipart/form-data; boundary={0}", boundary), this.CreateAttachment(advice));
             }
             else
             {
@@ -85,7 +85,7 @@ namespace SanteDB.Messaging.GS1.Transport.AS2
             String boundary = String.Format("------{0:N}", Guid.NewGuid());
             if (this.m_configuration.UseAS2MimeEncoding)
             {
-                this.Client.Post<MultipartAttachment, object>("despatchAdvice", String.Format("multipart/form-data; boundary={0}", boundary), this.CreateAttachment(advice));
+                this.Client.Post<MultiPartFormData, object>("despatchAdvice", String.Format("multipart/form-data; boundary={0}", boundary), this.CreateAttachment(advice));
             }
             else
             {
@@ -96,13 +96,13 @@ namespace SanteDB.Messaging.GS1.Transport.AS2
         /// <summary>
         /// Create an appropriate MIME encoding
         /// </summary>
-        private MultipartAttachment CreateAttachment(object content)
+        private MultiPartFormData CreateAttachment(object content)
         {
             XmlSerializer xsz = XmlModelSerializerFactory.Current.CreateSerializer(content.GetType());
             using (var ms = new MemoryStream())
             {
                 xsz.Serialize(ms, content);
-                return new MultipartAttachment(ms.ToArray(), "edi/xml", "body", false);
+                return new MultiPartFormData("body", ms.ToArray(), "edi/xml", "body.edi", false);
             }
         }
     }

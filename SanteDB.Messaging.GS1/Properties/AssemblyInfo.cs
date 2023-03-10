@@ -1,5 +1,5 @@
 ﻿/*
- * Portions Copyright 2019-2022, Fyfe Software Inc. and the SanteSuite Contributors (See NOTICE)
+ * Portions Copyright 2019-2023, Fyfe Software Inc. and the SanteSuite Contributors (See NOTICE)
  * 
  * Licensed under the Apache License, Version 2.0 (the "License"); you 
  * may not use this file except in compliance with the License. You may 
@@ -14,7 +14,7 @@
  * the License.
  * 
  * User: fyfej (<Unknown>)
- * Date: 2022-5-30
+ * Date: 2023-3-10
  */
 using SanteDB.Core.Attributes;
 using SanteDB.Core.Configuration;
@@ -30,7 +30,7 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("")]
 [assembly: AssemblyProduct("SanteDB.Messaging.GS1")]
-[assembly: AssemblyCopyright("Copyright (C) 2021 SanteSuite Inc. and the SanteSuite Contributors (See NOTICE.md)")]
+[assembly: AssemblyCopyright("Copyright (C) 2023 SanteSuite Inc. and the SanteSuite Contributors (See NOTICE.md)")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 

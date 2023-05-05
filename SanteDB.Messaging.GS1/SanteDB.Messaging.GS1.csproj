@@ -27,7 +27,7 @@
     <Company>SanteSuite Contributors</Company>
     <PackageIconUrl>http://santesuite.org/assets/img/logo.png</PackageIconUrl>
     <PackageProjectUrl>http://santesuite.org</PackageProjectUrl>
-    <RootNamespace>SanteDB.Client.Batteries</RootNamespace>
+    <RootNamespace>SanteDB.Messaging.GS1</RootNamespace>
     <PackageTags>cdr santedb gs1</PackageTags>
     <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
   </PropertyGroup>

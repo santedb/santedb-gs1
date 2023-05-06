@@ -18,7 +18,7 @@
  - User: fyfej (<Unknown>)
  - Date: 2023-3-10
  -->
-<RestServiceConfiguration xmlns="http://santedb.org/configuration" name="GS1">
+<RestServiceConfiguration xmlns="http://santedb.org/configuration" name="GS1BMS">
   <behaviors>
     <add type="SanteDB.Rest.Common.Security.TokenAuthorizationAccessBehavior, SanteDB.Rest.Common"/>
   </behaviors>

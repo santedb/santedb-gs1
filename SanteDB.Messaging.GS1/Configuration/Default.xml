@@ -16,7 +16,7 @@
  - the License.
  - 
  - User: fyfej (<Unknown>)
- - Date: 2023-3-10
+ - Date: 2023-5-19
  -->
 <RestServiceConfiguration xmlns="http://santedb.org/configuration" name="GS1BMS">
   <behaviors>

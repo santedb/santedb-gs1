@@ -299,7 +299,7 @@ namespace SanteDB.Messaging.GS1.Model
             var typeItemCode = new ItemTypeCodeType()
             {
                 Value = cvx?.Mnemonic ?? material.TypeConcept?.Mnemonic ?? material.Key.Value.ToString(),
-                codeListVersion = cvx?.LoadProperty<CodeSystem>("CodeSystem")?.Authority ?? "SanteDB-MaterialType"
+                codeListVersion = cvx?.LoadProperty<CodeSystem>("CodeSystem")?.Domain ?? "SanteDB-MaterialType"
             };
 
             // Manufactured material?

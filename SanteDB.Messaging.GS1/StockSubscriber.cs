@@ -209,7 +209,7 @@ namespace SanteDB.Messaging.GS1
                 {
                     entityIdentification = act.Key.Value.ToString()
                 },
-                orderTypeCode = new OrderTypeCodeType() { Value = type?.Mnemonic, codeListVersion = type?.LoadProperty<CodeSystem>("CodeSystem").Authority },
+                orderTypeCode = new OrderTypeCodeType() { Value = type?.Mnemonic, codeListVersion = type?.LoadProperty<CodeSystem>("CodeSystem").Domain },
                 isApplicationReceiptAcknowledgementRequired = true,
                 isApplicationReceiptAcknowledgementRequiredSpecified = true,
                 note = new Description500Type() { Value = act.LoadCollection<ActNote>("Notes").FirstOrDefault()?.Text },

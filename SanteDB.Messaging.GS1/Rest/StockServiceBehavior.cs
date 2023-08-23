@@ -421,7 +421,7 @@ namespace SanteDB.Messaging.GS1.Rest
                                 var typeItemCode = new ItemTypeCodeType()
                                 {
                                     Value = cvx?.Mnemonic ?? mmat.TypeConcept?.Mnemonic ?? mat.Key.Value.ToString(),
-                                    codeListVersion = cvx?.LoadProperty<CodeSystem>("CodeSystem")?.Authority ?? "SanteDB-MaterialType"
+                                    codeListVersion = cvx?.LoadProperty<CodeSystem>("CodeSystem")?.Domain ?? "SanteDB-MaterialType"
                                 };
 
                                 // First we need the GTIN for on-hand balance

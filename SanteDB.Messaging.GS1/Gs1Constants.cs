@@ -1,5 +1,5 @@
 ﻿/*
- * Portions Copyright 2019-2023, Fyfe Software Inc. and the SanteSuite Contributors (See NOTICE)
+ * Portions Copyright 2019-2024, Fyfe Software Inc. and the SanteSuite Contributors (See NOTICE)
  * 
  * Licensed under the Apache License, Version 2.0 (the "License"); you 
  * may not use this file except in compliance with the License. You may 
@@ -13,8 +13,8 @@
  * License for the specific language governing permissions and limitations under 
  * the License.
  * 
- * User: fyfej (<Unknown>)
- * Date: 2023-5-19
+ * User: fyfej (Justin Fyfe)
+ * Date: 2023-6-21
  */
 namespace SanteDB.Messaging.GS1
 {

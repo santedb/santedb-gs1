@@ -25,6 +25,7 @@ using SanteDB.Core.Services;
 using SanteDB.Messaging.GS1.Configuration;
 using SanteDB.Messaging.GS1.Model;
 using System;
+using System.Diagnostics.CodeAnalysis;
 
 namespace SanteDB.Messaging.GS1.Transport.AS2
 {
@@ -33,6 +34,7 @@ namespace SanteDB.Messaging.GS1.Transport.AS2
     /// </summary>
     /// <remarks>This class is obsolete and will be migrated to the <see cref="IPubSubDispatcherFactory"/> implementations in future versions of SanteDB.</remarks>
     [ServiceProvider("GS1 AS2(ish) Integration Service"), Obsolete]
+    [ExcludeFromCodeCoverage]
     public class As2IntegrationService : IDaemonService
     {
         /// <summary>

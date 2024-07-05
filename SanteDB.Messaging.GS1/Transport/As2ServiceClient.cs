@@ -24,6 +24,7 @@ using SanteDB.Core.Services;
 using SanteDB.Messaging.GS1.Configuration;
 using SanteDB.Messaging.GS1.Model;
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Xml.Serialization;
 
@@ -32,6 +33,7 @@ namespace SanteDB.Messaging.GS1.Transport.AS2
     /// <summary>
     /// GS1 service client
     /// </summary>
+    [ExcludeFromCodeCoverage]
     public class Gs1ServiceClient : ServiceClientBase
     {
         // Configuration

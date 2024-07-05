@@ -32,6 +32,7 @@ using SanteDB.Messaging.GS1.Model;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 
@@ -42,6 +43,7 @@ namespace SanteDB.Messaging.GS1.Rest
     /// </summary>
     /// <remarks>The SanteDB server implementation of the GS1 BMS 3.3 interface over REST</remarks>
     [ServiceBehavior(Name = StockServiceMessageHandler.ConfigurationName, InstanceMode = ServiceInstanceMode.PerCall)]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
     public class StockServiceBehavior : IStockService, IServiceImplementation
     {
         // Configuration

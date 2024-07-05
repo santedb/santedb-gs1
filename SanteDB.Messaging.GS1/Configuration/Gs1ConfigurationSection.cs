@@ -27,6 +27,7 @@ namespace SanteDB.Messaging.GS1.Configuration
     /// GS1 configuration 
     /// </summary>
     [XmlType(nameof(Gs1ConfigurationSection), Namespace = "http://santedb.org/configuration")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
     public class Gs1ConfigurationSection : IConfigurationSection
     {
         /// <summary>

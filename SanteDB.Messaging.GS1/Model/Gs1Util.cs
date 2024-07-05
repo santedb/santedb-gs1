@@ -34,6 +34,7 @@ namespace SanteDB.Messaging.GS1.Model
     /// <summary>
     /// GS1 Utility class
     /// </summary>
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
     public class Gs1Util
     {
         // Configuration

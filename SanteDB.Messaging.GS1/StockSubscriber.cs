@@ -31,6 +31,7 @@ using SanteDB.Messaging.GS1.Configuration;
 using SanteDB.Messaging.GS1.Model;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Linq;
 
@@ -43,6 +44,7 @@ namespace SanteDB.Messaging.GS1
     /// This service is obsolete and will be replaced using the <see cref="PubSubBroker"/> implementation and 
     /// <see cref="IPubSubDispatcherFactory"/> implementation instead.
     /// </remarks>
+    [ExcludeFromCodeCoverage]
     [ServiceProvider("GS1 Stock Event Subscriber"), Obsolete]
     public class StockSubscriber : IDaemonService
     {

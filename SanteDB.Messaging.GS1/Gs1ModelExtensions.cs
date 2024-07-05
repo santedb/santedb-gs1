@@ -17,12 +17,14 @@
  * Date: 2023-6-21
  */
 using System;
+using System.Diagnostics.CodeAnalysis;
 
 namespace SanteDB.Messaging.GS1
 {
     /// <summary>
     /// GS1 extensions to core model attributes
     /// </summary>
+    [ExcludeFromCodeCoverage]
     public static class Gs1ModelExtensions
     {
         /// <summary>

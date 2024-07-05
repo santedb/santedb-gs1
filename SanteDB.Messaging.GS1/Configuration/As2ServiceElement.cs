@@ -27,6 +27,7 @@ namespace SanteDB.Messaging.GS1.Configuration
     /// AS2 Service configuration
     /// </summary>
     [XmlType(nameof(As2ServiceElement), Namespace = "http://santedb.org/configuration")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
     public class As2ServiceElement
     {
         /// <summary>

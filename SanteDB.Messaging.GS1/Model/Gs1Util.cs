@@ -49,8 +49,6 @@ namespace SanteDB.Messaging.GS1.Model
         // Place repository
         private IRepositoryService<Place> m_placeRepository;
 
-        // Stock service
-        private IStockManagementRepositoryService m_stockService;
 
         /// <summary>
         /// GS1 Utility class
@@ -61,7 +59,6 @@ namespace SanteDB.Messaging.GS1.Model
             this.m_materialRepository = ApplicationServiceContext.Current.GetService<IRepositoryService<Material>>();
             this.m_manufMaterialRepository = ApplicationServiceContext.Current.GetService<IRepositoryService<ManufacturedMaterial>>();
             this.m_placeRepository = ApplicationServiceContext.Current.GetService<IRepositoryService<Place>>();
-            this.m_stockService = ApplicationServiceContext.Current.GetService<IStockManagementRepositoryService>();
         }
 
         /// <summary>

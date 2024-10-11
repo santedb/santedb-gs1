@@ -13,8 +13,6 @@
  * License for the specific language governing permissions and limitations under 
  * the License.
  * 
- * User: fyfej (Justin Fyfe)
- * Date: 2023-6-21
  */
 using SanteDB.Core;
 using SanteDB.Core.Model;
@@ -34,6 +32,7 @@ namespace SanteDB.Messaging.GS1.Model
     /// <summary>
     /// GS1 Utility class
     /// </summary>
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
     public class Gs1Util
     {
         // Configuration
@@ -50,8 +49,6 @@ namespace SanteDB.Messaging.GS1.Model
         // Place repository
         private IRepositoryService<Place> m_placeRepository;
 
-        // Stock service
-        private IStockManagementRepositoryService m_stockService;
 
         /// <summary>
         /// GS1 Utility class
@@ -62,7 +59,6 @@ namespace SanteDB.Messaging.GS1.Model
             this.m_materialRepository = ApplicationServiceContext.Current.GetService<IRepositoryService<Material>>();
             this.m_manufMaterialRepository = ApplicationServiceContext.Current.GetService<IRepositoryService<ManufacturedMaterial>>();
             this.m_placeRepository = ApplicationServiceContext.Current.GetService<IRepositoryService<Place>>();
-            this.m_stockService = ApplicationServiceContext.Current.GetService<IStockManagementRepositoryService>();
         }
 
         /// <summary>

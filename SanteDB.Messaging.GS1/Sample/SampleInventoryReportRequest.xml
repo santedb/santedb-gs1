@@ -13,9 +13,6 @@
  - WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the 
  - License for the specific language governing permissions and limitations under 
  - the License.
- - 
- - User: fyfej (Justin Fyfe)
- - Date: 2023-6-21
  -->
 <logistics_inventory_report_request:logisticsInventoryReportRequestMessage xmlns:logistics_inventory_report_request="urn:gs1:ecom:logistics_inventory_report_request:xsd:3" xmlns:sh="http://www.unece.org/cefact/namespaces/StandardBusinessDocumentHeader" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="urn:gs1:ecom:logistics_inventory_report_request:xsd:3 ../Schemas/gs1/ecom/LogisticsInventoryReportRequest.xsd">
   <sh:StandardBusinessDocumentHeader>

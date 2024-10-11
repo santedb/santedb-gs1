@@ -13,8 +13,6 @@
  * License for the specific language governing permissions and limitations under 
  * the License.
  * 
- * User: fyfej (Justin Fyfe)
- * Date: 2023-6-21
  */
 using SanteDB.Core;
 using SanteDB.Core.Diagnostics;
@@ -31,6 +29,7 @@ using SanteDB.Messaging.GS1.Configuration;
 using SanteDB.Messaging.GS1.Model;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Linq;
 
@@ -43,6 +42,7 @@ namespace SanteDB.Messaging.GS1
     /// This service is obsolete and will be replaced using the <see cref="PubSubBroker"/> implementation and 
     /// <see cref="IPubSubDispatcherFactory"/> implementation instead.
     /// </remarks>
+    [ExcludeFromCodeCoverage]
     [ServiceProvider("GS1 Stock Event Subscriber"), Obsolete]
     public class StockSubscriber : IDaemonService
     {

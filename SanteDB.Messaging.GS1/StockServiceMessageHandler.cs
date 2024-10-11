@@ -13,8 +13,6 @@
  * License for the specific language governing permissions and limitations under 
  * the License.
  * 
- * User: fyfej (Justin Fyfe)
- * Date: 2023-6-21
  */
 using RestSrvr;
 using SanteDB.Core;
@@ -26,6 +24,7 @@ using SanteDB.Messaging.GS1.Rest;
 using SanteDB.Rest.Common.Behavior;
 using System;
 using System.ComponentModel;
+using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.Tracing;
 using System.Linq;
 
@@ -39,6 +38,7 @@ namespace SanteDB.Messaging.GS1
     /// which implements SanteDB's <see href="https://help.santesuite.org/developers/service-apis/gs1-bms-xml">GS1 BMS API</see>.</para>
     /// </remarks>
     [Description("Allows SanteDB iCDR to send and receive GS1 BMS XML messages over REST based transport")]
+    [ExcludeFromCodeCoverage]
     [ApiServiceProvider("GS1 BMS XML3.3 API Endpoint", typeof(StockServiceBehavior), ServiceEndpointType.Gs1StockInterface, Configuration = typeof(Gs1ConfigurationSection))]
     public class StockServiceMessageHandler : IDaemonService, IApiEndpointProvider
     {

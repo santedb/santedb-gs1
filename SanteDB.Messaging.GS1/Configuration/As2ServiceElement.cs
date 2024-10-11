@@ -13,8 +13,6 @@
  * License for the specific language governing permissions and limitations under 
  * the License.
  * 
- * User: fyfej (Justin Fyfe)
- * Date: 2023-6-21
  */
 using Newtonsoft.Json;
 using SanteDB.Core.Configuration.Http;
@@ -27,6 +25,7 @@ namespace SanteDB.Messaging.GS1.Configuration
     /// AS2 Service configuration
     /// </summary>
     [XmlType(nameof(As2ServiceElement), Namespace = "http://santedb.org/configuration")]
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
     public class As2ServiceElement
     {
         /// <summary>

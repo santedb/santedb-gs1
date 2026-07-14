@@ -33,7 +33,6 @@ namespace SanteDB.Messaging.GS1.Configuration
         /// </summary>
         public Gs1ConfigurationSection()
         {
-            this.Gs1Broker = new As2ServiceElement();
         }
 
         /// <summary>
@@ -52,26 +51,6 @@ namespace SanteDB.Messaging.GS1.Configuration
         [XmlAttribute("defaultAuthority")]
         [DisplayName("Default Owner AA"), Description("The assinging authority to append to owner information when not provided in the GS1 message")]
         public String DefaultContentOwnerAssigningAuthority
-        {
-            get; set;
-        }
-
-        /// <summary>
-        /// Gets the queue on which to place messages
-        /// </summary>
-        [XmlAttribute("queueName"), ConfigurationRequired]
-        [DisplayName("Queue Name"), Description("The name of the queue from the queue service which stores GS1 requests until they can be successfully sent")]
-        public String Gs1QueueName
-        {
-            get; set;
-        }
-
-        /// <summary>
-        /// Gets or sets the gs1 broker address
-        /// </summary>
-        [XmlElement("broker"), ConfigurationRequired]
-        [TypeConverter(typeof(ExpandableObjectConverter)), DisplayName("GS1 Broker"), Description("Configuration for the broker to use for GS1 messages")]
-        public As2ServiceElement Gs1Broker
         {
             get; set;
         }

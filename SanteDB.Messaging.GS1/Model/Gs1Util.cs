@@ -53,12 +53,13 @@ namespace SanteDB.Messaging.GS1.Model
         /// <summary>
         /// GS1 Utility class
         /// </summary>
-        public Gs1Util()
+        public Gs1Util(IRepositoryService<Act> actRepository, IRepositoryService<Material> materialRepository, IRepositoryService<ManufacturedMaterial> manufacturedMaterialRepository, 
+            IRepositoryService<Place> placeRepository)
         {
-            this.m_actRepository = ApplicationServiceContext.Current.GetService<IRepositoryService<Act>>();
-            this.m_materialRepository = ApplicationServiceContext.Current.GetService<IRepositoryService<Material>>();
-            this.m_manufMaterialRepository = ApplicationServiceContext.Current.GetService<IRepositoryService<ManufacturedMaterial>>();
-            this.m_placeRepository = ApplicationServiceContext.Current.GetService<IRepositoryService<Place>>();
+            this.m_actRepository = actRepository;
+            this.m_materialRepository = materialRepository;
+            this.m_manufMaterialRepository = manufacturedMaterialRepository;
+            this.m_placeRepository = placeRepository;
         }
 
         /// <summary>
@@ -76,19 +77,8 @@ namespace SanteDB.Messaging.GS1.Model
             return new TransactionalPartyType()
             {
                 gln = place.Identifiers.FirstOrDefault(o => o.IdentityDomain.Oid == gln.Oid)?.Value,
-                address = new AddressType()
-                {
-                    state = place.Addresses.FirstOrDefault()?.Component.FirstOrDefault(o => o.ComponentTypeKey == AddressComponentKeys.State)?.Value,
-                    city = place.Addresses.FirstOrDefault()?.Component.FirstOrDefault(o => o.ComponentTypeKey == AddressComponentKeys.City)?.Value,
-                    countryCode = new CountryCodeType() { Value = place.Addresses.FirstOrDefault()?.Component.FirstOrDefault(o => o.ComponentTypeKey == AddressComponentKeys.Country)?.Value },
-                    countyCode = place.Addresses.FirstOrDefault()?.Component.FirstOrDefault(o => o.ComponentTypeKey == AddressComponentKeys.County)?.Value,
-                    postalCode = place.Addresses.FirstOrDefault()?.Component.FirstOrDefault(o => o.ComponentTypeKey == AddressComponentKeys.PostalCode)?.Value,
-                },
-                additionalPartyIdentification = place.Identifiers.Select(o => new AdditionalPartyIdentificationType()
-                {
-                    additionalPartyIdentificationTypeCode = o.IdentityDomain.DomainName,
-                    Value = o.Value
-                }).ToArray(),
+                address = this.CreateAddressType(place.LoadProperty(o=>o.Addresses).FirstOrDefault()),
+                additionalPartyIdentification = place.Identifiers.Select(this.CreateIdentification).ToArray(),
                 organisationDetails = new OrganisationType()
                 {
                     organisationName = place.Names.FirstOrDefault()?.Component.FirstOrDefault()?.Value
@@ -554,6 +544,57 @@ namespace SanteDB.Messaging.GS1.Model
                             }
                     }
                 }
+            };
+        }
+
+        /// <summary>
+        /// Create an inventory location from a container
+        /// </summary>
+        public TransactionalPartyType CreateInventoryLocation(Container container)
+        {
+            if(container == null)
+            {
+                return null;
+            }
+
+            return new TransactionalPartyType()
+            {
+                additionalPartyIdentification = container.LoadProperty(o => o.Identifiers).Select(o => this.CreateIdentification(o)).ToArray(),
+                address = this.CreateAddressType(container.LoadProperty(o => o.Addresses)?.FirstOrDefault()),
+                avpList = container.LoadProperty(o => o.Names).Select(o => new EcomStringAttributeValuePairListType()
+                {
+                    attributeName = "containerName",
+                    Value = o.ToDisplay()
+                }).ToArray(),
+            };
+        }
+
+        private AddressType CreateAddressType(EntityAddress entityAddress)
+        {
+            if (entityAddress == null)
+            {
+                return null;
+            }
+            return new AddressType()
+            {
+                city = entityAddress.LoadProperty(o => o.Component).FirstOrDefault(o => o.ComponentTypeKey == AddressComponentKeys.City)?.Value,
+                countryCode = new CountryCodeType() { Value = entityAddress.Component.FirstOrDefault(o => o.ComponentTypeKey == AddressComponentKeys.Country)?.Value },
+                countyCode = entityAddress.Component.FirstOrDefault(o => o.ComponentTypeKey == AddressComponentKeys.County)?.Value,
+                pOBoxNumber = entityAddress.Component.FirstOrDefault(o => o.ComponentTypeKey == AddressComponentKeys.PostBox)?.Value,
+                postalCode = entityAddress.Component.FirstOrDefault(o => o.ComponentTypeKey == AddressComponentKeys.PostalCode)?.Value,
+                state = entityAddress.Component.FirstOrDefault(o => o.ComponentTypeKey == AddressComponentKeys.State)?.Value,
+                streetAddressOne = entityAddress.Component.FirstOrDefault(o => o.ComponentTypeKey == AddressComponentKeys.AddressLine || o.ComponentTypeKey == AddressComponentKeys.StreetAddressLine)?.Value,
+                streetAddressTwo = entityAddress.Component.Where(o => o.ComponentTypeKey == AddressComponentKeys.AddressLine || o.ComponentTypeKey == AddressComponentKeys.StreetAddressLine).Skip(1).FirstOrDefault()?.Value,
+                streetAddressThree = entityAddress.Component.Where(o => o.ComponentTypeKey == AddressComponentKeys.AddressLine || o.ComponentTypeKey == AddressComponentKeys.StreetAddressLine).Skip(2).FirstOrDefault()?.Value
+            };
+        }
+
+        private AdditionalPartyIdentificationType CreateIdentification(EntityIdentifier objectId)
+        {
+            return new AdditionalPartyIdentificationType()
+            {
+                Value = objectId.Value,
+                additionalPartyIdentificationTypeCode = objectId.LoadProperty(o => o.IdentityDomain)?.DomainName
             };
         }
     }

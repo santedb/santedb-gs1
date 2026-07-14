@@ -74,14 +74,20 @@ namespace SanteDB.Messaging.GS1.Rest
         /// <summary>
         /// Default ctor setting services
         /// </summary>
-        public StockServiceBehavior(ILocalizationService localizationService)
+        public StockServiceBehavior(ILocalizationService localizationService, 
+            IRepositoryService<Act> actRepository, 
+            IRepositoryService<Material> materialRepository,
+            IRepositoryService<Place> placeRepository,
+            IStockManagementService stockManagementService, 
+            IRepositoryService<ManufacturedMaterial> manufacturedMaterialRepository, 
+            Gs1Util gs1Util = null)
         {
-            this.m_actRepository = ApplicationServiceContext.Current.GetService<IRepositoryService<Act>>();
-            this.m_materialRepository = ApplicationServiceContext.Current.GetService<IRepositoryService<Material>>();
-            this.m_placeRepository = ApplicationServiceContext.Current.GetService<IRepositoryService<Place>>();
-            this.m_stockService = ApplicationServiceContext.Current.GetService<IStockManagementService>();
-            this.m_manufMaterialRepository = ApplicationServiceContext.Current.GetService<IRepositoryService<ManufacturedMaterial>>();
-            this.m_gs1Util = new Gs1Util();
+            this.m_actRepository = actRepository;
+            this.m_materialRepository = materialRepository;
+            this.m_placeRepository = placeRepository;
+            this.m_stockService = stockManagementService;
+            this.m_manufMaterialRepository = manufacturedMaterialRepository;
+            this.m_gs1Util = gs1Util ?? typeof(Gs1Util).CreateInjected() as Gs1Util;
             this.m_localizationService = localizationService;
         }
 
@@ -169,6 +175,7 @@ namespace SanteDB.Messaging.GS1.Rest
                     this.m_tracer.TraceWarning("Duplicate despatch {0} will be ignored", adv.despatchAdviceIdentification.entityIdentification);
                     continue;
                 }
+                
 
                 // Now we want to create a new Supply act which that fulfills the old act
                 Act fulfillAct = new Act()

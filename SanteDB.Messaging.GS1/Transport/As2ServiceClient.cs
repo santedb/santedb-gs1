@@ -26,23 +26,22 @@ using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Xml.Serialization;
 
-namespace SanteDB.Messaging.GS1.Transport.AS2
+namespace SanteDB.Messaging.GS1.Transport
 {
     /// <summary>
     /// GS1 service client
     /// </summary>
     [ExcludeFromCodeCoverage]
-    public class Gs1ServiceClient : ServiceClientBase
+    public class As2ServiceClient : ServiceClientBase
     {
-        // Configuration
-        private As2ServiceElement m_configuration = ApplicationServiceContext.Current.GetService<IConfigurationManager>().GetSection<Gs1ConfigurationSection>()?.Gs1Broker;
+        private readonly bool m_useMimeEncoding;
 
         /// <summary>
         /// Create the GS1 service client
         /// </summary>
-        public Gs1ServiceClient(IRestClient restClient) : base(restClient)
+        public As2ServiceClient(IRestClient restClient, bool useMimeEncoding) : base(restClient)
         {
-            this.m_configuration = this.Client.Description as As2ServiceElement;
+            this.m_useMimeEncoding = useMimeEncoding;
         }
 
         /// <summary>
@@ -51,7 +50,7 @@ namespace SanteDB.Messaging.GS1.Transport.AS2
         public void IssueOrder(OrderMessageType orderType)
         {
             String boundary = String.Format("------{0:N}", Guid.NewGuid());
-            if (this.m_configuration.UseAS2MimeEncoding)
+            if (this.m_useMimeEncoding)
             {
                 this.Client.Post<MultiPartFormData, object>("orderRequest", String.Format("multipart/form-data; boundary={0}", boundary), this.CreateAttachment(orderType));
             }
@@ -67,7 +66,7 @@ namespace SanteDB.Messaging.GS1.Transport.AS2
         public void IssueReceivingAdvice(ReceivingAdviceMessageType advice)
         {
             String boundary = String.Format("------{0:N}", Guid.NewGuid());
-            if (this.m_configuration.UseAS2MimeEncoding)
+            if (this.m_useMimeEncoding)
             {
                 this.Client.Post<MultiPartFormData, object>("receivingAdvice", String.Format("multipart/form-data; boundary={0}", boundary), this.CreateAttachment(advice));
             }
@@ -83,7 +82,7 @@ namespace SanteDB.Messaging.GS1.Transport.AS2
         public void IssueDespatchAdvice(DespatchAdviceMessageType advice)
         {
             String boundary = String.Format("------{0:N}", Guid.NewGuid());
-            if (this.m_configuration.UseAS2MimeEncoding)
+            if (this.m_useMimeEncoding)
             {
                 this.Client.Post<MultiPartFormData, object>("despatchAdvice", String.Format("multipart/form-data; boundary={0}", boundary), this.CreateAttachment(advice));
             }

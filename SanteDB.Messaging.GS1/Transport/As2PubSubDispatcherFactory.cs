@@ -148,8 +148,7 @@ namespace SanteDB.Messaging.GS1.Transport
                         shipTo = this.m_gs1Util.CreateLocation(shipTo as Place),
                         receiver = this.m_gs1Util.CreateLocation(shipTo as Place),
                         receivingAdviceLogisticUnit = act.Participations.Where(o=>o.ParticipationRoleKey == ActParticipationKeys.Consumable).Select(o=> this.m_gs1Util.CreateReceiveLineItem(o, originalOrder.Participations.FirstOrDefault(p=>p.PlayerEntityKey == o.PlayerEntityKey))).ToArray(),
-                        inventoryLocation = this.m_gs1Util.CreateInventoryLocation(storedContainer as Container)
-                        
+                        inventoryLocation = this.m_gs1Util.CreateInventoryLocation(shipTo as Place, storedContainer as Container)
                     }
                 };
 

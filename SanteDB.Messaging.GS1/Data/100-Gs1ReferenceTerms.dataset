@@ -1,5 +1,5 @@
 ﻿<?xml version="1.0" encoding="utf-8" ?>
-<dataset xmlns="http://santedb.org/data" id="GS1 Stock Status Reference Terms">
+<dataset xmlns="http://santedb.org/data" id="GS1 Stock Status Reference Terms v3.0">
   <update insertIfNotExists="true">
     <CodeSystem xmlns="http://santedb.org/model">
       <id>a50485e9-bad4-4525-8e8b-13fcedb8f583</id>
@@ -56,6 +56,7 @@
   </update>
   <update insertIfNotExists="true">
     <ConceptReferenceTerm xmlns="http://santedb.org/model">
+		<id>1E88C501-0978-4D1A-B7DF-9424D1C1EA2E</id>
       <source>06922eac-0cae-49af-a33c-fc7096349e4a</source>
       <term>38f853da-1d0f-4d48-8d8f-c763ee9114be</term>
       <relationshipType>2c4dafc2-566a-41ae-9ebc-3097d7d22f4a</relationshipType>
@@ -63,21 +64,24 @@
   </update>
   <update insertIfNotExists="true">
     <ConceptReferenceTerm xmlns="http://santedb.org/model">
-      <source>dcff308d-cca5-4eb3-ad92-770917d88e56</source>
+		<id>2E88C501-0978-4D1A-B7DF-9424D1C1EA2E</id>
+		<source>dcff308d-cca5-4eb3-ad92-770917d88e56</source>
       <term>44b0472b-c4e5-465d-98ad-bb96d41bbdba</term>
       <relationshipType>2c4dafc2-566a-41ae-9ebc-3097d7d22f4a</relationshipType>
     </ConceptReferenceTerm>
   </update>
   <update insertIfNotExists="true">
     <ConceptReferenceTerm xmlns="http://santedb.org/model">
-      <source>4b518938-b1ea-44e3-b837-31617fa188a4</source>
+		<id>3E88C501-0978-4D1A-B7DF-9424D1C1EA2E</id>
+		<source>4b518938-b1ea-44e3-b837-31617fa188a4</source>
       <term>dbbe9408-2149-4527-a8a4-4934cb656514</term>
       <relationshipType>2c4dafc2-566a-41ae-9ebc-3097d7d22f4a</relationshipType>
     </ConceptReferenceTerm>
   </update>
   <update insertIfNotExists="true">
     <ConceptReferenceTerm xmlns="http://santedb.org/model">
-      <source>67F64C78-91B6-42D8-96F6-9A2639112F6B</source>
+		<id>4E88C501-0978-4D1A-B7DF-9424D1C1EA2E</id>
+		<source>67F64C78-91B6-42D8-96F6-9A2639112F6B</source>
       <term>eae6da8d-7eb4-4c68-ace2-e1e3cb3b752e</term>
       <relationshipType>2c4dafc2-566a-41ae-9ebc-3097d7d22f4a</relationshipType>
     </ConceptReferenceTerm>

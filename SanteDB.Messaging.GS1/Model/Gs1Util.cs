@@ -15,6 +15,7 @@
  * 
  */
 using SanteDB.Core;
+using SanteDB.Core.Diagnostics;
 using SanteDB.Core.Model;
 using SanteDB.Core.Model.Acts;
 using SanteDB.Core.Model.Collection;
@@ -23,6 +24,7 @@ using SanteDB.Core.Model.DataTypes;
 using SanteDB.Core.Model.Entities;
 using SanteDB.Core.Services;
 using SanteDB.Messaging.GS1.Configuration;
+using SharpCompress.Compressors.RLE90;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -35,6 +37,11 @@ namespace SanteDB.Messaging.GS1.Model
     [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
     public class Gs1Util
     {
+        /// <summary>
+        /// Get the tracer
+        /// </summary>
+        private readonly Tracer m_tracer = Tracer.GetTracer(typeof(Gs1Util));
+
         // Configuration
         private Gs1ConfigurationSection m_configuration = ApplicationServiceContext.Current.GetService<IConfigurationManager>().GetSection<Gs1ConfigurationSection>();
 
@@ -48,18 +55,27 @@ namespace SanteDB.Messaging.GS1.Model
 
         // Place repository
         private IRepositoryService<Place> m_placeRepository;
+        private readonly IRepositoryService<EntityRelationship> m_relationshipRepository;
+        private readonly IConceptRepositoryService m_conceptRepository;
 
 
         /// <summary>
         /// GS1 Utility class
         /// </summary>
-        public Gs1Util(IRepositoryService<Act> actRepository, IRepositoryService<Material> materialRepository, IRepositoryService<ManufacturedMaterial> manufacturedMaterialRepository, 
-            IRepositoryService<Place> placeRepository)
+        public Gs1Util(
+            IRepositoryService<Act> actRepository,
+            IRepositoryService<Material> materialRepository,
+            IRepositoryService<ManufacturedMaterial> manufacturedMaterialRepository,
+            IRepositoryService<Place> placeRepository,
+            IConceptRepositoryService conceptRepository,
+            IRepositoryService<EntityRelationship> relationshipRepository)
         {
             this.m_actRepository = actRepository;
             this.m_materialRepository = materialRepository;
             this.m_manufMaterialRepository = manufacturedMaterialRepository;
             this.m_placeRepository = placeRepository;
+            this.m_relationshipRepository = relationshipRepository;
+            this.m_conceptRepository = conceptRepository; ;
         }
 
         /// <summary>
@@ -72,13 +88,11 @@ namespace SanteDB.Messaging.GS1.Model
                 return null;
             }
 
-            var oidService = ApplicationServiceContext.Current.GetService<IIdentityDomainRepositoryService>();
-            var gln = oidService.Get("GLN");
             return new TransactionalPartyType()
             {
-                gln = place.Identifiers.FirstOrDefault(o => o.IdentityDomain.Oid == gln.Oid)?.Value,
-                address = this.CreateAddressType(place.LoadProperty(o=>o.Addresses).FirstOrDefault()),
-                additionalPartyIdentification = place.Identifiers.Select(this.CreateIdentification).ToArray(),
+                gln = place.Identifiers.FirstOrDefault(o => o.IdentityDomainKey == IdentityDomainKeys.Gs1GlobalLocationNumber)?.Value,
+                address = this.CreateAddressType(place.LoadProperty(o => o.Addresses).FirstOrDefault()),
+                additionalPartyIdentification = new AdditionalPartyIdentificationType[] { new AdditionalPartyIdentificationType() { additionalPartyIdentificationTypeCode = "UUID", Value = place.Key.ToString() } }.Concat(place.Identifiers.Select(this.CreateIdentification)).ToArray(),
                 organisationDetails = new OrganisationType()
                 {
                     organisationName = place.Names.FirstOrDefault()?.Component.FirstOrDefault()?.Value
@@ -548,24 +562,45 @@ namespace SanteDB.Messaging.GS1.Model
         }
 
         /// <summary>
-        /// Create an inventory location from a container
+        /// Create inventory location and container classification
         /// </summary>
-        public TransactionalPartyType CreateInventoryLocation(Container container)
+        public TransactionalPartyType CreateInventoryLocation(Place place, Container container)
         {
-            if(container == null)
+            if (place == null || container == null)
             {
                 return null;
             }
 
-            return new TransactionalPartyType()
+            var retVal = this.CreateLocation(place);
+            retVal.avpList = new EcomStringAttributeValuePairListType[]
             {
-                additionalPartyIdentification = container.LoadProperty(o => o.Identifiers).Select(o => this.CreateIdentification(o)).ToArray(),
-                address = this.CreateAddressType(container.LoadProperty(o => o.Addresses)?.FirstOrDefault()),
-                avpList = container.LoadProperty(o => o.Names).Select(o => new EcomStringAttributeValuePairListType()
-                {
+                new EcomStringAttributeValuePairListType() {
                     attributeName = "containerName",
-                    Value = o.ToDisplay()
-                }).ToArray(),
+                    Value = container.LoadProperty(o => o.Names).FirstOrDefault()?.ToDisplay()
+                }
+            }.Concat(retVal.avpList ?? new EcomStringAttributeValuePairListType[0]).ToArray();
+            return retVal;
+        }
+
+        /// <summary>
+        /// Create an inventory location from a container
+        /// </summary>
+        public InventorySubLocationType CreateInventoryLocation(Container container)
+        {
+            if (container == null)
+            {
+                return null;
+            }
+
+            return new InventorySubLocationType()
+            {
+                gln = container.Identifiers.FirstOrDefault(o => o.IdentityDomainKey == IdentityDomainKeys.Gs1GlobalLocationNumber)?.Value,
+                additionalPartyIdentification = new AdditionalPartyIdentificationType[] { new AdditionalPartyIdentificationType() { additionalPartyIdentificationTypeCode = "UUID", Value = container.Key.ToString() } }.Concat(container.Identifiers.Select(this.CreateIdentification)).ToArray(),
+                inventorySubLocationTypeCode = new InventorySubLocationTypeCodeType()
+                {
+                    Value = container.LoadProperty(o => o.TypeConcept).Mnemonic,
+                    codeListVersion = "SanteDB-Concept"
+                }
             };
         }
 
@@ -595,6 +630,93 @@ namespace SanteDB.Messaging.GS1.Model
             {
                 Value = objectId.Value,
                 additionalPartyIdentificationTypeCode = objectId.LoadProperty(o => o.IdentityDomain)?.DomainName
+            };
+        }
+
+        internal TradeItemInventoryStatusType CreateTradeItemStatus(Container heldInContainer, ManufacturedMaterial materialHeld, string dispositionCode, int quantity)
+        {
+            var productHeld = this.m_relationshipRepository.Find(o => o.RelationshipTypeKey == EntityRelationshipTypeKeys.Instance && o.TargetEntityKey == materialHeld.Key).FirstOrDefault()?.LoadProperty(o => o.Holder) as Material;
+            var genericRelationship = productHeld?.LoadProperty(o => o.Relationships).FirstOrDefault(o => o.RelationshipTypeKey == EntityRelationshipTypeKeys.HasGenerialization);
+            var genericHeld = genericRelationship?.LoadProperty(o => o.TargetEntity) as Material;
+            if (materialHeld == null || productHeld == null || genericHeld == null)
+            {
+                this.m_tracer.TraceWarning("Could not produce logistics report for {0} / {1} / {2}", materialHeld, productHeld, genericHeld);
+                return null;
+            }
+
+            var cvx = this.m_conceptRepository.GetConceptReferenceTerm(productHeld.TypeConceptKey.Value, "CVX") ??
+                    this.m_conceptRepository.GetConceptReferenceTerm(genericHeld.TypeConceptKey.Value, "CVX");
+
+            var typeItemCode = new ItemTypeCodeType()
+            {
+                Value = cvx?.Mnemonic ??
+                    productHeld.LoadProperty(o => o.TypeConcept)?.Mnemonic,
+                codeListVersion = cvx?.LoadProperty(o => o.CodeSystem)?.Domain ?? "SanteDB-MaterialType"
+            };
+
+            var baseUnit = genericHeld.LoadProperty(o => o.QuantityConcept)?.LoadProperty(o => o.ReferenceTerms).FirstOrDefault();
+            var packageUnit = productHeld.LoadProperty(o => o.QuantityConcept)?.LoadProperty(o => o.ReferenceTerms).FirstOrDefault();
+
+            return new TradeItemInventoryStatusType()
+            {
+                inventorySubLocation = this.CreateInventoryLocation(heldInContainer),
+                avpList = new EcomStringAttributeValuePairListType[]
+                {
+                    new EcomStringAttributeValuePairListType() { attributeName = "containerName", Value = heldInContainer.LoadProperty(o=>o.Names).FirstOrDefault()?.ToDisplay() }
+                },
+                gtin = productHeld.LoadProperty(o => o.Identifiers).FirstOrDefault(o => o.IdentityDomainKey == IdentityDomainKeys.Gs1GlobalTradeIdentificationNumber)?.Value,
+                itemTypeCode = typeItemCode,
+                additionalTradeItemIdentification = new AdditionalTradeItemIdentificationType[] {
+                    new AdditionalTradeItemIdentificationType() { additionalTradeItemIdentificationTypeCode = "UUID", Value = materialHeld.Key.ToString() }
+                }.Concat(productHeld.LoadProperty(o => o.Identifiers).Where(o => o.IdentityDomainKey != IdentityDomainKeys.Gs1GlobalTradeIdentificationNumber).Select(o => new AdditionalTradeItemIdentificationType()
+                {
+                    additionalTradeItemIdentificationTypeCode = o.IdentityDomain.DomainName,
+                    Value = o.Value
+                })).ToArray(),
+                tradeItemDescription = productHeld.LoadProperty(o => o.Names).Select(o => new Description200Type() { Value = o.ToDisplay() }).FirstOrDefault(),
+                inventoryDateTime = DateTime.Now,
+                inventoryDateTimeSpecified = true,
+                inventoryDispositionCode = new InventoryDispositionCodeType() { Value = dispositionCode },
+                transactionalItemData = new TransactionalItemDataType[]
+                    {
+                        new TransactionalItemDataType()
+                        {
+                            tradeItemQuantity = new QuantityType()
+                            {
+                                codeListVersion = baseUnit?.LoadProperty(o => o.ReferenceTerm).LoadProperty(o => o.CodeSystem).Domain ?? "SanteDB-Concept",
+                                measurementUnitCode = baseUnit?.ReferenceTerm.Mnemonic ?? genericHeld.QuantityConcept.Mnemonic,
+                                Value = Math.Abs(quantity)
+                            },
+                            transactionalItemLogisticUnitInformation = new TransactionalItemLogisticUnitInformationType()
+                            {
+                                packageTypeCode = new PackageTypeCodeType()
+                                {
+                                    codeListVersion = packageUnit?.LoadProperty(o => o.ReferenceTerm).LoadProperty(o => o.CodeSystem).Domain ?? "SanteDB-Concept",
+                                    Value = packageUnit?.ReferenceTerm.Mnemonic ?? productHeld.QuantityConcept.Mnemonic
+                                }
+                            },
+                            transactionalItemVolume = new UnitMeasurementType[]
+                            {
+                                new UnitMeasurementType()
+                                {
+                                    measurementType = new MeasurementTypeCodeType()
+                                    {
+                                        codeListVersion = packageUnit?.LoadProperty(o => o.ReferenceTerm).LoadProperty(o => o.CodeSystem).Domain ?? "SanteDB-Concept",
+                                        Value = packageUnit?.ReferenceTerm.Mnemonic ?? productHeld.QuantityConcept.Mnemonic
+                                    },
+                                    measurementValue = new MeasurementType()
+                                    {
+                                        Value = Math.Abs(genericRelationship.Quantity ?? 1),
+                                        codeListVersion = baseUnit?.LoadProperty(o => o.ReferenceTerm).LoadProperty(o => o.CodeSystem).Domain ?? "SanteDB-Concept",
+                                        measurementUnitCode = baseUnit?.ReferenceTerm.Mnemonic ?? genericHeld.QuantityConcept.Mnemonic
+                                    }
+                                }
+                            },
+                            batchNumber = materialHeld.LotNumber,
+                            itemExpirationDate = materialHeld.ExpiryDate.Value,
+                            itemExpirationDateSpecified = true
+                        }
+                    }
             };
         }
     }

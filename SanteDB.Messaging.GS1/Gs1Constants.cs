@@ -58,5 +58,10 @@ namespace SanteDB.Messaging.GS1
         /// Trace source name
         /// </summary>
         public const string TraceSourceName = "SanteDB.Messaging.GS1";
+
+        /// <summary>
+        /// Stock status code system
+        /// </summary>
+        public const string Gs1StockStatusCodeSystem = "GS1_STOCK_STATUS";
     }
 }

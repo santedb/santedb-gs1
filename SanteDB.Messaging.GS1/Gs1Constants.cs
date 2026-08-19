@@ -14,6 +14,8 @@
  * the License.
  * 
  */
+using System;
+
 namespace SanteDB.Messaging.GS1
 {
     /// <summary>
@@ -21,9 +23,45 @@ namespace SanteDB.Messaging.GS1
     /// </summary>
     internal static class Gs1Constants
     {
+
+        /// <summary>
+        /// Pub/sub AS2 mime encoding
+        /// </summary>
+        public const string PubsubAs2MimeEncodingSettingName = "as2.useMimeEncoding";
+
+        /// <summary>
+        /// Authenticator
+        /// </summary>
+        public const string PubsubAuthenticatorSettingName = "$authenticator";
+
+        /// <summary>
+        /// Act type of ORDER
+        /// </summary>
+        public static readonly Guid ActTypeOrder = Guid.Parse("14d69b32-f6c4-4a49-a527-a74893dbcf4a");
+
+        /// <summary>
+        /// Order has been received in SanteDB
+        /// </summary>
+        public static readonly Guid ActTypeOrderReceipt = Guid.Parse("34b3e45f-f6c4-4a49-a527-a74893dbcf4a");
+
+        /// <summary>
+        /// Order has been despatched from SanteDB
+        /// </summary>
+        public static readonly Guid ActTypeOrderDespatch = Guid.Parse("32fedb45-f6c4-4a49-a527-a74893dbcf4a");
+
+        /// <summary>
+        /// Transfer event
+        /// </summary>
+        public static readonly Guid ActTypeTransfer = Guid.Parse("77C4002A-A0F4-43F0-9457-12DA5E11FA34");
+
         /// <summary>
         /// Trace source name
         /// </summary>
         public const string TraceSourceName = "SanteDB.Messaging.GS1";
+
+        /// <summary>
+        /// Stock status code system
+        /// </summary>
+        public const string Gs1StockStatusCodeSystem = "GS1_STOCK_STATUS";
     }
 }

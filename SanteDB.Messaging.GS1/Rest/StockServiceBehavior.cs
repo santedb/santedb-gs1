@@ -18,6 +18,7 @@ using RestSrvr.Attributes;
 using SanteDB.Core;
 using SanteDB.Core.Diagnostics;
 using SanteDB.Core.Extensions;
+using SanteDB.Core.i18n;
 using SanteDB.Core.Model.Acts;
 using SanteDB.Core.Model.Collection;
 using SanteDB.Core.Model.Constants;
@@ -27,12 +28,14 @@ using SanteDB.Core.Security;
 using SanteDB.Core.Services;
 using SanteDB.Messaging.GS1.Configuration;
 using SanteDB.Messaging.GS1.Model;
+using SanteDB.Rest.Common.Attributes;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
+using System.Net.Http.Headers;
 
 namespace SanteDB.Messaging.GS1.Rest
 {
@@ -40,15 +43,34 @@ namespace SanteDB.Messaging.GS1.Rest
     /// GS1 BMS 3.3
     /// </summary>
     /// <remarks>The SanteDB server implementation of the GS1 BMS 3.3 interface over REST</remarks>
-    [ServiceBehavior(Name = StockServiceMessageHandler.ConfigurationName, InstanceMode = ServiceInstanceMode.PerCall)]
+    [ServiceBehavior(Name = StockServiceMessageHandler.ConfigurationName, InstanceMode = ServiceInstanceMode.Singleton)]
     [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
     public class StockServiceBehavior : IStockService, IServiceImplementation
     {
+
+        /// <summary>
+        /// Used for conveying logistics inventory report filters
+        /// </summary>
+        private struct LogisticsReportFilter
+        {
+            public Place Place { get; set; }
+
+            public DateTime? FromDate { get; set; }
+
+            public DateTime? ToDate { get; set; }
+
+        }
+
         // Configuration
         private Gs1ConfigurationSection m_configuration = ApplicationServiceContext.Current.GetService<IConfigurationManager>().GetSection<Gs1ConfigurationSection>();
+        private readonly IIdentityDomainRepositoryService m_identityDomain;
+        private readonly IConceptRepositoryService m_conceptRepository;
+        private readonly IdentityDomain m_gln;
+        private readonly IdentityDomain m_gtin;
 
         // Act repository
         private IRepositoryService<Act> m_actRepository;
+        private readonly IRepositoryService<EntityRelationship> m_entityRelationshipRepository;
 
         // Material repository
         private IRepositoryService<Material> m_materialRepository;
@@ -71,18 +93,62 @@ namespace SanteDB.Messaging.GS1.Rest
         // Localization Service
         private readonly ILocalizationService m_localizationService;
 
+        public StockServiceBehavior() :
+            this(
+                ApplicationServiceContext.Current.GetService<ILocalizationService>(),
+                ApplicationServiceContext.Current.GetService<IRepositoryService<Act>>(),
+                ApplicationServiceContext.Current.GetService<IRepositoryService<Material>>(),
+                ApplicationServiceContext.Current.GetService<IRepositoryService<Place>>(),
+                ApplicationServiceContext.Current.GetService<IStockManagementService>(),
+                ApplicationServiceContext.Current.GetService<IRepositoryService<ManufacturedMaterial>>(),
+                ApplicationServiceContext.Current.GetService<IRepositoryService<EntityRelationship>>(),
+                ApplicationServiceContext.Current.GetService<IIdentityDomainRepositoryService>(),
+                ApplicationServiceContext.Current.GetService<IConceptRepositoryService>(),
+                ApplicationServiceContext.Current.GetService<Gs1Util>()
+            )
+        {
+
+        }
+
         /// <summary>
         /// Default ctor setting services
         /// </summary>
-        public StockServiceBehavior(ILocalizationService localizationService)
+        public StockServiceBehavior(ILocalizationService localizationService,
+            IRepositoryService<Act> actRepository,
+            IRepositoryService<Material> materialRepository,
+            IRepositoryService<Place> placeRepository,
+            IStockManagementService stockManagementService,
+            IRepositoryService<ManufacturedMaterial> manufacturedMaterialRepository,
+            IRepositoryService<EntityRelationship> entityRelationshipRepository,
+            IIdentityDomainRepositoryService identityDomainRepositoryService,
+            IConceptRepositoryService conceptRepositoryService,
+            Gs1Util gs1Util = null)
         {
-            this.m_actRepository = ApplicationServiceContext.Current.GetService<IRepositoryService<Act>>();
-            this.m_materialRepository = ApplicationServiceContext.Current.GetService<IRepositoryService<Material>>();
-            this.m_placeRepository = ApplicationServiceContext.Current.GetService<IRepositoryService<Place>>();
-            this.m_stockService = ApplicationServiceContext.Current.GetService<IStockManagementService>();
-            this.m_manufMaterialRepository = ApplicationServiceContext.Current.GetService<IRepositoryService<ManufacturedMaterial>>();
-            this.m_gs1Util = new Gs1Util();
+
+            this.m_identityDomain = identityDomainRepositoryService;
+
+            this.m_conceptRepository = conceptRepositoryService;
+            // Attempt to get the GLN and GTIN
+            this.m_gln = identityDomainRepositoryService.Get(IdentityDomainKeys.Gs1GlobalLocationNumber);
+            this.m_gtin = identityDomainRepositoryService.Get(IdentityDomainKeys.Gs1GlobalTradeIdentificationNumber);
+            if (this.m_gln == null || this.m_gtin == null)
+            {
+                throw new InvalidOperationException(String.Format(ErrorMessages.DEPENDENT_CONFIGURATION_MISSING, "GTIN and GLN DOMAINS"));
+            }
+
+            this.m_actRepository = actRepository;
+            this.m_entityRelationshipRepository = entityRelationshipRepository;
+            this.m_materialRepository = materialRepository;
+            this.m_placeRepository = placeRepository;
+            this.m_stockService = stockManagementService;
+            this.m_manufMaterialRepository = manufacturedMaterialRepository;
+            this.m_gs1Util = gs1Util ?? typeof(Gs1Util).CreateInjected() as Gs1Util;
             this.m_localizationService = localizationService;
+
+            if(this.m_stockService == null)
+            {
+                throw new InvalidOperationException(String.Format(ErrorMessages.SERVICE_NOT_FOUND, typeof(IStockManagementService)));
+            }
         }
 
         // HDSI Trace host
@@ -96,6 +162,7 @@ namespace SanteDB.Messaging.GS1.Rest
         /// <summary>
         /// The issue despactch advice message will insert a new shipped order into the TImR system.
         /// </summary>
+        [Demand(PermissionPolicyIdentifiers.LoginAsService)]
         public void IssueDespatchAdvice(DespatchAdviceMessageType advice)
         {
             if (advice == null || advice.despatchAdvice == null)
@@ -169,6 +236,7 @@ namespace SanteDB.Messaging.GS1.Rest
                     this.m_tracer.TraceWarning("Duplicate despatch {0} will be ignored", adv.despatchAdviceIdentification.entityIdentification);
                     continue;
                 }
+
 
                 // Now we want to create a new Supply act which that fulfills the old act
                 Act fulfillAct = new Act()
@@ -256,302 +324,130 @@ namespace SanteDB.Messaging.GS1.Rest
         /// <summary>
         /// Requests the issuance of a BMS1 inventory report request
         /// </summary>
+        [Demand(PermissionPolicyIdentifiers.LoginAsService)]
         public LogisticsInventoryReportMessageType IssueInventoryReportRequest(LogisticsInventoryReportRequestMessageType parameters)
         {
-            throw new NotImplementedException();
+            var retVal = new LogisticsInventoryReportMessageType()
+            {
+                StandardBusinessDocumentHeader = this.m_gs1Util.CreateDocumentHeader("logisticsInventoryReport", null)
+            };
 
-            //// Status
-            //LogisticsInventoryReportMessageType retVal = new LogisticsInventoryReportMessageType()
-            //{
-            //    StandardBusinessDocumentHeader = this.m_gs1Util.CreateDocumentHeader("logisticsInventoryReport", null)
-            //};
+            var report = new LogisticsInventoryReportType()
+            {
+                creationDateTime = DateTime.Now,
+                documentStatusCode = DocumentStatusEnumerationType.ORIGINAL,
+                documentActionCode = DocumentActionEnumerationType.CHANGE_BY_REFRESH,
+                logisticsInventoryReportIdentification = new Ecom_EntityIdentificationType() { entityIdentification = BitConverter.ToInt64(Guid.NewGuid().ToByteArray(), 0).ToString("X") },
+                structureTypeCode = new StructureTypeCodeType() { Value = "LOCATION_BY_ITEM" },
+                documentActionCodeSpecified = true,
+                documentStructureVersion = "3.3",
+            };
 
-            //// Date / time of report
+            // Next, we want to know which facilities for which we're getting the inventory report
+            var filterPlaces = new List<LogisticsReportFilter>();
+            foreach (var reportTarget in parameters.logisticsInventoryReportRequest ?? new LogisticsInventoryReportRequestType[0])
+            {
 
-            //DateTime? reportFrom = parameters.logisticsInventoryReportRequest.First().reportingPeriod?.beginDate ?? DateTime.MinValue,
-            //    reportTo = parameters.logisticsInventoryReportRequest.First().reportingPeriod?.endDate ?? DateTime.Now;
+                DateTime? reportFrom = reportTarget.reportingPeriod?.beginDate ?? DateTime.MinValue,
+                    reportTo = reportTarget.reportingPeriod?.endDate ?? DateTime.Now;
 
-            //// return value
-            //LogisticsInventoryReportType report = new LogisticsInventoryReportType()
-            //{
-            //    creationDateTime = DateTime.Now,
-            //    documentStatusCode = DocumentStatusEnumerationType.ORIGINAL,
-            //    documentActionCode = DocumentActionEnumerationType.CHANGE_BY_REFRESH,
-            //    logisticsInventoryReportIdentification = new Ecom_EntityIdentificationType() { entityIdentification = BitConverter.ToInt64(Guid.NewGuid().ToByteArray(), 0).ToString("X") },
-            //    structureTypeCode = new StructureTypeCodeType() { Value = "LOCATION_BY_ITEM" },
-            //    documentActionCodeSpecified = true
-            //};
+                if (reportTarget.logisticsInventoryReportTypeCode != LogisticsInventoryReportTypeEnumerationType.FULL_STATUS_REPORT &&
+                    reportTarget.logisticsInventoryReportTypeCode != LogisticsInventoryReportTypeEnumerationType.TRADE_ITEM_STATUS_REPORT)
+                {
+                    throw new ArgumentOutOfRangeException(string.Format(ErrorMessages.ARGUMENT_OUT_OF_RANGE, reportTarget.logisticsInventoryReportTypeCode, "FULL_STATUS_REPORT or TRADE_ITEM_STATUS_REPORT"));
+                }
 
-            //var locationStockStatuses = new List<LogisticsInventoryReportInventoryLocationType>();
+                foreach (var filter in reportTarget.logisticsInventoryRequestLocation)
+                {
+                    var id = filter.inventoryLocation.gln ?? filter.inventoryLocation.additionalPartyIdentification?.FirstOrDefault()?.Value;
+                    var place = this.m_placeRepository.Find(o => o.Identifiers.Any(i => i.Value == id)).FirstOrDefault();
+                    if (place == null)
+                    {
+                        Guid uuid = Guid.Empty;
+                        if (Guid.TryParse(id, out uuid))
+                        {
+                            place = this.m_placeRepository.Get(uuid, Guid.Empty);
+                        }
 
-            //// Next, we want to know which facilities for which we're getting the inventory report
-            //List<Place> filterPlaces = null;
-            //if (parameters.logisticsInventoryReportRequest.First().logisticsInventoryRequestLocation != null &&
-            //    parameters.logisticsInventoryReportRequest.First().logisticsInventoryRequestLocation.Length > 0)
-            //{
-            //    foreach (var filter in parameters.logisticsInventoryReportRequest.First().logisticsInventoryRequestLocation)
-            //    {
-            //        var id = filter.inventoryLocation.gln ?? filter.inventoryLocation.additionalPartyIdentification?.FirstOrDefault()?.Value;
-            //        var place = this.m_placeRepository.Find(o => o.Identifiers.Any(i => i.Value == id)).FirstOrDefault();
-            //        if (place == null)
-            //        {
-            //            Guid uuid = Guid.Empty;
-            //            if (Guid.TryParse(id, out uuid))
-            //            {
-            //                place = this.m_placeRepository.Get(uuid, Guid.Empty);
-            //            }
+                        if (place == null)
+                        {
+                            this.m_tracer.TraceError($"Place {filter.inventoryLocation.gln} not found");
+                            throw new FileNotFoundException(this.m_localizationService.GetString("error.messaging.gs1.placeNotFound",
+                                new
+                                {
+                                    param = filter.inventoryLocation.gln
+                                }));
+                        }
+                    }
+                    filterPlaces.Add(new LogisticsReportFilter()
+                    {
+                        FromDate = reportFrom,
+                        ToDate = reportTo,
+                        Place = place
+                    });
+                }
+            }
 
-            //            if (place == null)
-            //            {
-            //                this.m_tracer.TraceError($"Place {filter.inventoryLocation.gln} not found");
-            //                throw new FileNotFoundException(this.m_localizationService.GetString("error.messaging.gs1.placeNotFound",
-            //                    new
-            //                    {
-            //                        param = filter.inventoryLocation.gln
-            //                    }));
-            //            }
-            //        }
-            //        if (filterPlaces == null)
-            //        {
-            //            filterPlaces = new List<Place>() { place };
-            //        }
-            //        else
-            //        {
-            //            filterPlaces.Add(place);
-            //        }
-            //    }
-            //}
-            //else
-            //{
-            //    filterPlaces = this.m_placeRepository.Find(o => o.ClassConceptKey == EntityClassKeys.ServiceDeliveryLocation).ToList();
-            //}
+            // No query = get all
+            if (!filterPlaces.Any())
+            {
+                filterPlaces = this.m_placeRepository.Find(o => o.ClassConceptKey == EntityClassKeys.ServiceDeliveryLocation).ToList()
+                    .Select(o => new LogisticsReportFilter()
+                    {
+                        Place = o
+                    }).ToList();
+            }
 
-            //// Get the GLN AA data
-            //var oidService = ApplicationServiceContext.Current.GetService<IIdentityDomainRepositoryService>();
-            //var gln = oidService.Get("GLN");
-            //var gtin = oidService.Get("GTIN");
+            // Create the inventory report
+            report.logisticsInventoryReportInventoryLocation = filterPlaces.AsParallel().Select(o => this.CreatePlaceInventoryReport(o.Place, o.FromDate, o.ToDate)).ToArray();
 
-            //if (gln == null || gln.Oid == null)
-            //{
-            //    this.m_tracer.TraceError("GLN configuration must carry OID and be named GLN in repository");
-            //    throw new InvalidOperationException(this.m_localizationService.GetString("error.messaging.gs1.configuration", new
-            //    {
-            //        param = "GLN",
-            //    }));
-            //}
-            //if (gtin == null || gtin.Oid == null)
-            //{
-            //    this.m_tracer.TraceError("GTIN configuration must carry OID and be named GTIN in repository");
-            //    throw new InvalidOperationException(this.m_localizationService.GetString("error.messaging.gs1.configuration", new
-            //    {
-            //        param = "GTIN"
-            //    }));
-            //}
+            retVal.logisticsInventoryReport = new LogisticsInventoryReportType[] { report };
+            return retVal;
 
-            //var masterAuthContext = AuthenticationContext.Current.Principal;
+        }
 
-            //// Create the inventory report
-            //filterPlaces.ToList().ForEach(place =>
-            //{
-            //    using (AuthenticationContext.EnterContext(masterAuthContext))
-            //    {
-            //        try
-            //        {
-            //            var locationStockStatus = new LogisticsInventoryReportInventoryLocationType();
-            //            lock (locationStockStatuses)
-            //            {
-            //                locationStockStatuses.Add(locationStockStatus);
-            //            }
+        private LogisticsInventoryReportInventoryLocationType CreatePlaceInventoryReport(Place place, DateTime? reportFrom, DateTime? reportTo)
+        {
+            using (AuthenticationContext.EnterSystemContext())
+            {
+                var locationStockReport = new LogisticsInventoryReportInventoryLocationType();
+                locationStockReport.inventoryLocation = this.m_gs1Util.CreateLocation(place);
+                locationStockReport.tradeItemInventoryStatus = this.m_stockService.GetStockContainers(place.Key.Value).SelectMany(container =>
+                {
+                    // What are the relationships of held entities
+                    return this.m_stockService.GetContainerContents(container.Key.Value, reportTo).ToList().SelectMany(rel =>
+                    {
+                        var lotHeld = this.m_manufMaterialRepository.Get(rel.MatierialKey);
+                        var retVal = new List<TradeItemInventoryStatusType>()
+                        {
+                            this.m_gs1Util.CreateTradeItemStatus(container, lotHeld, "ON_HAND", rel.Quantity)
+                        };
 
-            //            // TODO: Store the GLN configuration domain name
-            //            locationStockStatus.inventoryLocation = this.m_gs1Util.CreateLocation(place);
+                        // Get the ledger entries 
+                        var ledgerEntryGroups = this.m_stockService.GetLedgerEntries(container.Key.Value, lotHeld.Key.Value, reportFrom, reportTo).GroupBy(o => o.ReasonKey);
+                        foreach (var lg in ledgerEntryGroups)
+                        {
+                            var wastageReason = this.m_conceptRepository.GetConceptReferenceTerm(lg.Key, Gs1Constants.Gs1StockStatusCodeSystem);
+                            if (wastageReason == null)
+                            {
+                                this.m_tracer.TraceWarning("Could not translate wastage reason '{0}' to GS1 code", lg.Key);
+                                continue;
+                            }
 
-            //            var tradeItemStatuses = new List<TradeItemInventoryStatusType>();
+                            retVal.Add(this.m_gs1Util.CreateTradeItemStatus(container, lotHeld, wastageReason.Mnemonic, lg.Sum(o => o.Quantity)));
+                        }
 
-            //            // What are the relationships of held entities
-            //            var persistenceService = ApplicationServiceContext.Current.GetService<IDataPersistenceService<EntityRelationship>>();
-            //            var relationships = persistenceService.Query(o => o.RelationshipTypeKey == EntityRelationshipTypeKeys.OwnedEntity && o.SourceEntityKey == place.Key.Value, AuthenticationContext.Current.Principal);
-            //            relationships.ToList().ForEach(rel =>
-            //            {
-            //                using (AuthenticationContext.EnterContext(masterAuthContext))
-            //                {
-            //                    if (!(rel.TargetEntity is ManufacturedMaterial))
-            //                    {
-            //                        var matl = this.m_manufMaterialRepository.Get(rel.TargetEntityKey.Value, Guid.Empty);
-            //                        if (matl == null)
-            //                        {
-            //                            Trace.TraceWarning("It looks like {0} owns {1} but {1} is not a mmat!?!?!", place.Key, rel.TargetEntityKey);
-            //                            return;
-            //                        }
-            //                        else
-            //                        {
-            //                            rel.TargetEntity = matl;
-            //                        }
-            //                    }
-            //                    var mmat = rel.TargetEntity as ManufacturedMaterial;
-            //                    if (!(mmat is ManufacturedMaterial))
-            //                    {
-            //                        return;
-            //                    }
-
-            //                    var mat = this.m_materialRepository.Find(o => o.Relationships.Where(r => r.RelationshipType.Mnemonic == "Instance").Any(r => r.TargetEntity.Key == mmat.Key)).FirstOrDefault();
-            //                    var instanceData = mat.LoadCollection<EntityRelationship>("Relationships").FirstOrDefault(o => o.RelationshipTypeKey == EntityRelationshipTypeKeys.Instance);
-
-            //                    decimal balanceOH = rel.Quantity ?? 0;
-
-            //                    // TODO: Update this to v3.0
-            //                    //// get the adjustments the adjustment acts are allocations and transfers
-            //                    //var adjustments = this.m_stockService.FindAdjustments(mmat.Key.Value, place.Key.Value, reportFrom, reportTo);
-
-            //                    //// We want to roll back to the start time and re-calc balance oh at time?
-            //                    //if (reportTo.Value.Date < DateTime.Now.Date)
-            //                    //{
-            //                    //    var consumed = this.m_stockService.GetConsumed(mmat.Key.Value, place.Key.Value, reportTo, DateTime.Now);
-            //                    //    balanceOH -= (decimal)consumed.Sum(o => o.Quantity ?? 0);
-
-            //                    //    if (balanceOH == 0 && this.m_stockService.GetConsumed(mmat.Key.Value, place.Key.Value, reportFrom, reportTo).Count() == 0)
-            //                    //    {
-            //                    //        return;
-            //                    //    }
-            //                    //}
-
-            //                    ReferenceTerm cvx = null;
-            //                    if (mat.TypeConceptKey.HasValue)
-            //                    {
-            //                        cvx = ApplicationServiceContext.Current.GetService<IConceptRepositoryService>().GetConceptReferenceTerm(mat.TypeConceptKey.Value, "CVX");
-            //                    }
-
-            //                    var typeItemCode = new ItemTypeCodeType()
-            //                    {
-            //                        Value = cvx?.Mnemonic ?? mmat.TypeConcept?.Mnemonic ?? mat.Key.Value.ToString(),
-            //                        codeListVersion = cvx?.LoadProperty<CodeSystem>("CodeSystem")?.Domain ?? "SanteDB-MaterialType"
-            //                    };
-
-            //                    // First we need the GTIN for on-hand balance
-            //                    lock (tradeItemStatuses)
-            //                    {
-            //                        tradeItemStatuses.Add(new TradeItemInventoryStatusType()
-            //                        {
-            //                            gtin = mmat.Identifiers.FirstOrDefault(o => o.IdentityDomain.DomainName == "GTIN")?.Value,
-            //                            itemTypeCode = typeItemCode,
-            //                            additionalTradeItemIdentification = mmat.Identifiers.Where(o => o.IdentityDomain.DomainName != "GTIN").Select(o => new AdditionalTradeItemIdentificationType()
-            //                            {
-            //                                additionalTradeItemIdentificationTypeCode = o.IdentityDomain.DomainName,
-            //                                Value = o.Value
-            //                            }).ToArray(),
-            //                            tradeItemDescription = mmat.Names.Select(o => new Description200Type() { Value = o.Component.FirstOrDefault()?.Value }).FirstOrDefault(),
-            //                            tradeItemClassification = new TradeItemClassificationType()
-            //                            {
-            //                                additionalTradeItemClassificationCode = mat.Identifiers.Where(o => o.IdentityDomain.Oid != gtin.Oid).Select(o => new AdditionalTradeItemClassificationCodeType()
-            //                                {
-            //                                    codeListVersion = o.IdentityDomain.DomainName,
-            //                                    Value = o.Value
-            //                                }).ToArray()
-            //                            },
-            //                            inventoryDateTime = DateTime.Now,
-            //                            inventoryDispositionCode = new InventoryDispositionCodeType() { Value = "ON_HAND" },
-            //                            transactionalItemData = new TransactionalItemDataType[]
-            //                            {
-            //                    new TransactionalItemDataType()
-            //                    {
-            //                        tradeItemQuantity = new QuantityType()
-            //                        {
-            //                            measurementUnitCode = (mmat.QuantityConcept ?? mat?.QuantityConcept)?.ReferenceTerms.Select(o => new AdditionalLogisticUnitIdentificationType()
-            //                            {
-            //                                additionalLogisticUnitIdentificationTypeCode = o.ReferenceTerm.CodeSystem.Name,
-            //                                Value = o.ReferenceTerm.Mnemonic
-            //                            }).FirstOrDefault()?.Value,
-            //                            Value = balanceOH
-            //                        },
-            //                        batchNumber = mmat.LotNumber,
-            //                        itemExpirationDate = mmat.ExpiryDate.Value,
-            //                        itemExpirationDateSpecified = true
-            //                    }
-            //                            }
-            //                        });
-            //                    }
-
-            //                    // TODO: Update to v3.0
-            //                //    foreach (var adjgrp in adjustments.GroupBy(o => o.ReasonConceptKey))
-            //                //    {
-            //                //        var reasonConcept = ApplicationServiceContext.Current.GetService<IConceptRepositoryService>().GetConceptReferenceTerm(adjgrp.Key.Value, "GS1_STOCK_STATUS")?.Mnemonic;
-            //                //        if (reasonConcept == null)
-            //                //        {
-            //                //            reasonConcept = (ApplicationServiceContext.Current.GetService<IConceptRepositoryService>().Get(adjgrp.Key.Value, Guid.Empty) as Concept)?.Mnemonic;
-            //                //        }
-
-            //                //        // Broken vials?
-            //                //        lock (tradeItemStatuses)
-            //                //        {
-            //                //            tradeItemStatuses.Add(new TradeItemInventoryStatusType()
-            //                //            {
-            //                //                gtin = mmat.Identifiers.FirstOrDefault(o => o.IdentityDomain.DomainName == "GTIN")?.Value,
-            //                //                itemTypeCode = typeItemCode,
-            //                //                additionalTradeItemIdentification = mmat.Identifiers.Where(o => o.IdentityDomain.DomainName != "GTIN").Select(o => new AdditionalTradeItemIdentificationType()
-            //                //                {
-            //                //                    additionalTradeItemIdentificationTypeCode = o.IdentityDomain.DomainName,
-            //                //                    Value = o.Value
-            //                //                }).ToArray(),
-            //                //                tradeItemClassification = new TradeItemClassificationType()
-            //                //                {
-            //                //                    additionalTradeItemClassificationCode = mat.Identifiers.Where(o => o.IdentityDomain.Oid != gtin.Oid).Select(o => new AdditionalTradeItemClassificationCodeType()
-            //                //                    {
-            //                //                        codeListVersion = o.IdentityDomain.DomainName,
-            //                //                        Value = o.Value
-            //                //                    }).ToArray()
-            //                //                },
-            //                //                tradeItemDescription = mmat.Names.Select(o => new Description200Type() { Value = o.Component.FirstOrDefault()?.Value }).FirstOrDefault(),
-            //                //                inventoryDateTime = DateTime.Now,
-            //                //                inventoryDispositionCode = new InventoryDispositionCodeType() { Value = reasonConcept },
-            //                //                transactionalItemData = new TransactionalItemDataType[]
-            //                //                {
-            //                //            new TransactionalItemDataType()
-            //                //            {
-            //                //                transactionalItemLogisticUnitInformation = instanceData == null ? null : new TransactionalItemLogisticUnitInformationType()
-            //                //                {
-            //                //                  numberOfLayers = "1",
-            //                //                  numberOfUnitsPerLayer = instanceData.Quantity.ToString(),
-            //                //                  packageTypeCode = new PackageTypeCodeType() { Value = mat.LoadCollection<EntityExtension>("Extensions").FirstOrDefault(o=>o.ExtensionTypeKey == Gs1ModelExtensions.PackagingUnit)?.ExtensionValue?.ToString() ?? "CONT" }
-            //                //                },
-            //                //                tradeItemQuantity = new QuantityType()
-            //                //                {
-            //                //                    measurementUnitCode = (mmat.QuantityConcept ?? mat?.QuantityConcept)?.ReferenceTerms.Select(o => new AdditionalLogisticUnitIdentificationType()
-            //                //                    {
-            //                //                        additionalLogisticUnitIdentificationTypeCode = o.ReferenceTerm.CodeSystem.Name,
-            //                //                        Value = o.ReferenceTerm.Mnemonic
-            //                //                    }).FirstOrDefault()?.Value,
-            //                //                    Value = Math.Abs(adjgrp.Sum(o => o.Participations.First(p => p.ParticipationRoleKey == ActParticipationKeys.Consumable && p.PlayerEntityKey == mmat.Key).Quantity.Value))
-            //                //                },
-            //                //                batchNumber = mmat.LotNumber,
-            //                //                itemExpirationDate = mmat.ExpiryDate.Value,
-            //                //                itemExpirationDateSpecified = true
-            //                //            }
-            //                //                }
-            //                //            });
-            //                //        }
-            //                //    }
-            //                //}
-            //            };
-
-            //            // Reduce
-            //            locationStockStatus.tradeItemInventoryStatus = tradeItemStatuses.ToArray();
-            //        }
-            //        catch (Exception e)
-            //        {
-            //            traceSource.TraceError("Error fetching stock data : {0}", e);
-            //        }
-            //    }
-            //    // TODO: Reduce and Group by GTIN
-            //});
-
-            //report.logisticsInventoryReportInventoryLocation = locationStockStatuses.ToArray();
-            //retVal.logisticsInventoryReport = new LogisticsInventoryReportType[] { report };
-            //return retVal;
+                        return retVal;
+                    });
+                }).ToArray();
+                return locationStockReport;
+            }
         }
 
         /// <summary>
         /// Issues the order response message which will mark the requested order as underway
         /// </summary>
+        [Demand(PermissionPolicyIdentifiers.LoginAsService)]
         public void IssueOrderResponse(OrderResponseMessageType orderResponse)
         {
             // TODO: Validate the standard header

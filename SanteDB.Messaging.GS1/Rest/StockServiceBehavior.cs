@@ -133,7 +133,7 @@ namespace SanteDB.Messaging.GS1.Rest
             this.m_gtin = identityDomainRepositoryService.Get(IdentityDomainKeys.Gs1GlobalTradeIdentificationNumber);
             if (this.m_gln == null || this.m_gtin == null)
             {
-                throw new InvalidOperationException(String.Format(ErrorMessages.DEPENDENT_CONFIGURATION_MISSING, "GTIN and GLN DOMAINS"));
+                this.m_tracer.TraceWarning(String.Format(ErrorMessages.DEPENDENT_CONFIGURATION_MISSING, "GTIN and GLN DOMAINS"));
             }
 
             this.m_actRepository = actRepository;
